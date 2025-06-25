@@ -4,6 +4,7 @@ using EcocementBot.Services;
 using EcocementBot.States;
 using EcocementBot.States.Screens.Admin;
 using EcocementBot.States.Screens.Admin.Clients;
+using EcocementBot.States.Screens.Admin.Mark;
 using Microsoft.EntityFrameworkCore;
 using Telegram.Bot;
 
@@ -15,6 +16,7 @@ var dbFile = builder.Configuration["DbFile"] ?? throw new InvalidOperationExcept
 builder.Services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite($"Data Source={dbFile}"), ServiceLifetime.Singleton);
 builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<ClientService>();
+builder.Services.AddSingleton<MarkService>();
 
 builder.Services.AddSingleton(new TelegramBotClient(botToken));
 builder.Services.AddSingleton<Navigator>();
@@ -26,6 +28,8 @@ builder.Services.AddTransient<ClientsScreen>();
 builder.Services.AddTransient<CreateClientScreen>();
 builder.Services.AddTransient<EditClientScreen>();
 builder.Services.AddTransient<DeleteClientScreen>();
+builder.Services.AddTransient<MarksScreen>();
+builder.Services.AddTransient<CreateMarkScreen>();
 
 var app = builder.Build();
 

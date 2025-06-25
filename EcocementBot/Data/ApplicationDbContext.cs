@@ -9,6 +9,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Administrator> Administrators { get; set; }
 
+    public DbSet<Mark> Marks { get; set; }
+
     public ApplicationDbContext(DbContextOptions options) : base(options)
     {
     }

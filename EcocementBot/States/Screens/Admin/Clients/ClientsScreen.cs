@@ -20,7 +20,7 @@ public class ClientsScreen : IScreen
 
     public Task EnterAsync(User user, Chat chat)
     {
-        return _client.SendMessage(chat, "👥 *Клієнти*\n\nОберіть:", 
+        return _client.SendMessage(chat, "💼 *Клієнти*\n\nОберіть:", 
             parseMode: ParseMode.Markdown, 
             replyMarkup: new ReplyKeyboardMarkup
         {
