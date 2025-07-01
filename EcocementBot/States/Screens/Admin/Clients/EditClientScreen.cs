@@ -16,13 +16,6 @@ public class EditClientScreen : IScreen
     private readonly Navigator _navigator;
     private readonly ClientService _clientService;
 
-    private static readonly KeyboardButton _cancelButton = new KeyboardButton("🚫 Скасувати");
-
-    private static readonly ReplyKeyboardMarkup _goBackKeyboard = new()
-    {
-        Keyboard = [[_cancelButton]]
-    };
-
     public EditClientScreen(TelegramBotClient client, Navigator navigator, ClientService clientService)
     {
         _client = client;
@@ -30,18 +23,18 @@ public class EditClientScreen : IScreen
         _clientService = clientService;
     }
 
-    public Task EnterAsync(User user, Chat chat)
+    public Task EnterAsync(TelegramUser user, Chat chat)
     {
         return _client.SendMessage(chat, "*✍️ Редагування клієнта*\n\nВведіть номер клієнта:",
             parseMode: ParseMode.Markdown,
-            replyMarkup: _goBackKeyboard);
+            replyMarkup: CommonButtons.CancelButton);
     }
 
     public async Task HandleInput(Message message)
     {
-        if (message.Text == _cancelButton.Text)
+        if (message.Text == CommonButtons.CancelButton.Text)
         {
-            await _navigator.PopScreen(message.From!, message.Chat);
+            await _navigator.GoBack(message.From!, message.Chat);
             return;
         }
 
@@ -97,13 +90,13 @@ public class EditClientScreen : IScreen
                     PaymentType.Card => "💳 Карта",
                 };
 
-                await _client.SendMessage(message.Chat, $"Виберіть спосіб доставки ({oldType}):",
+                await _client.SendMessage(message.Chat, $"Виберіть спосіб оплати ({oldType}):",
                     replyMarkup: new ReplyKeyboardMarkup
                     {
                         Keyboard =
                            [
                                [new KeyboardButton("💵 Готівка"), new KeyboardButton("💳 Карта")],
-                               [new KeyboardButton("🚫 Скасувати")]
+                               [CommonButtons.CancelButton]
                            ]
                     });
 
@@ -121,7 +114,7 @@ public class EditClientScreen : IScreen
                 }
                 await _clientService.UpdateClient(_state.Model);
                 await _client.SendMessage(message.Chat, "Дані клієнта оновлено ✅.");
-                await _navigator.PopScreen(message.From, message.Chat);
+                await _navigator.GoBack(message.From, message.Chat);
                 return;
         }
 
@@ -135,7 +128,7 @@ public class EditClientScreen : IScreen
             Keyboard =
             [
                 [new KeyboardButton(oldValue)],
-                [_cancelButton],
+                [CommonButtons.CancelButton],
             ]
         };
     }

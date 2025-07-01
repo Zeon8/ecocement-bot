@@ -10,8 +10,6 @@ public class ClientsScreen : IScreen
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
 
-    private readonly KeyboardButton _backButton = new("⬅️ Назад");
-
     public ClientsScreen(TelegramBotClient client, Navigator navigator)
     {
         _client = client;
@@ -31,22 +29,22 @@ public class ClientsScreen : IScreen
                         new KeyboardButton("✍️ Редагувати"),
                         new KeyboardButton("🗑 Видалити"),
                     ],
-                    [_backButton],
+                    [CommonButtons.BackButton],
                 ]
         });
     }
 
     public Task HandleInput(Message message)
     {
-        if (message.Text == _backButton.Text)
-            _navigator.PopScreen(message.From, message.Chat);
+        if (message.Text == CommonButtons.BackButton.Text)
+            _navigator.GoBack(message.From!, message.Chat);
 
         if (message.Text == "➕ Створити")
-            return _navigator.PushScreen<CreateClientScreen>(message.From!, message.Chat);
+            return _navigator.Open<CreateClientScreen>(message.From!, message.Chat);
         if (message.Text == "✍️ Редагувати")
-            return _navigator.PushScreen<EditClientScreen>(message.From!, message.Chat);
+            return _navigator.Open<EditClientScreen>(message.From!, message.Chat);
         if(message.Text == "🗑 Видалити")
-            return _navigator.PushScreen<DeleteClientScreen>(message.From!, message.Chat);
+            return _navigator.Open<DeleteClientScreen>(message.From!, message.Chat);
 
         return Task.CompletedTask;
     }

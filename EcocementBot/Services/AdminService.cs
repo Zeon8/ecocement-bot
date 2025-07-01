@@ -19,9 +19,9 @@ public class AdminService
     public async Task HandleMessage(Message message)
     {
         if(message.Text == "/start")
-            await _navigator.PushScreen<AdminScreen>(message.From, message.Chat);
+            await _navigator.Open<AdminScreen>(message.From, message.Chat);
 
-        var screen = _navigator.PeekScreen(message.From!);
+        var screen = _navigator.GetScreen(message.From!);
         if (screen is not null)
             await screen.HandleInput(message);
     }

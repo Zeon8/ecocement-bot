@@ -16,13 +16,6 @@ public class CreateClientScreen : IScreen
     private readonly Navigator _navigator;
     private readonly ClientService _clientService;
 
-    private static readonly KeyboardButton _cancelButton = new KeyboardButton("🚫 Скасувати");
-
-    private static readonly ReplyKeyboardMarkup _cancelKeyboard = new()
-    {
-        Keyboard = [[_cancelButton]]
-    };
-
     public CreateClientScreen(TelegramBotClient client, Navigator navigator, ClientService clientService)
     {
         _client = client;
@@ -34,14 +27,14 @@ public class CreateClientScreen : IScreen
     {
         return _client.SendMessage(chat, "*➕Створення клієнта*\n\nВведіть номер:", 
             parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown, 
-            replyMarkup: _cancelKeyboard);
+            replyMarkup: CommonButtons.CancelButton);
     }
 
     public async Task HandleInput(Message message)
     {
-        if (message.Text == _cancelButton.Text)
+        if (message.Text == CommonButtons.CancelButton.Text)
         {
-            await _navigator.PopScreen(message.From, message.Chat);
+            await _navigator.GoBack(message.From!, message.Chat);
             return;
         }
 
@@ -49,7 +42,7 @@ public class CreateClientScreen : IScreen
         {
             case StateTypes.EnteringPhoneNumber:
                 State.Model.PhoneNumber = message.Text;
-                await _client.SendMessage(message.Chat, "Введіть назву підприємства:", replyMarkup: _cancelKeyboard);
+                await _client.SendMessage(message.Chat, "Введіть назву підприємства:");
                 State.Type = StateTypes.EnteringName;
                 break;
             case StateTypes.EnteringName:
@@ -59,12 +52,12 @@ public class CreateClientScreen : IScreen
                 break;
             case StateTypes.EnteringAddress:
                 State.Model.Address = message.Text;
-                await _client.SendMessage(message.Chat, "Виберіть спосіб доставки:", replyMarkup: new ReplyKeyboardMarkup
+                await _client.SendMessage(message.Chat, "Виберіть спосіб оплати:", replyMarkup: new ReplyKeyboardMarkup
                 {
                     Keyboard =
                        [
                            [new KeyboardButton("💵 Готівка"), new KeyboardButton("💳 Карта")],
-                           [_cancelButton],
+                           [CommonButtons.CancelButton],
                        ]
                 });
                 State.Type = StateTypes.EnteringPaymentType;
@@ -81,7 +74,7 @@ public class CreateClientScreen : IScreen
                 }
                 await _clientService.CreateClient(State.Model);
                 await _client.SendMessage(message.Chat, "Клієнта додано ✅.");
-                await _navigator.PopScreen(message.From, message.Chat);
+                await _navigator.GoBack(message.From, message.Chat);
                 return;
         }
     }

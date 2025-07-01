@@ -4,7 +4,9 @@ using EcocementBot.Services;
 using EcocementBot.States;
 using EcocementBot.States.Screens.Admin;
 using EcocementBot.States.Screens.Admin.Clients;
-using EcocementBot.States.Screens.Admin.Mark;
+using EcocementBot.States.Screens.Admin.Marks;
+using EcocementBot.States.Screens.Auth;
+using EcocementBot.States.Screens.Clients;
 using Microsoft.EntityFrameworkCore;
 using Telegram.Bot;
 
@@ -21,6 +23,7 @@ builder.Services.AddSingleton<MarkService>();
 builder.Services.AddSingleton(new TelegramBotClient(botToken));
 builder.Services.AddSingleton<Navigator>();
 builder.Services.AddSingleton<ApplicationStartup>();
+builder.Services.AddSingleton<SessionService>();
 
 builder.Services.AddTransient<AdminService>();
 builder.Services.AddTransient<AdminScreen>();
@@ -30,6 +33,9 @@ builder.Services.AddTransient<EditClientScreen>();
 builder.Services.AddTransient<DeleteClientScreen>();
 builder.Services.AddTransient<MarksScreen>();
 builder.Services.AddTransient<CreateMarkScreen>();
+builder.Services.AddTransient<RemoveMarkScreen>();
+builder.Services.AddTransient<AuthorizationScreen>();
+builder.Services.AddTransient<OrderScreen>();
 
 var app = builder.Build();
 

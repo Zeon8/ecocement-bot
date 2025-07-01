@@ -1,5 +1,5 @@
 ﻿using EcocementBot.States.Screens.Admin.Clients;
-using EcocementBot.States.Screens.Admin.Mark;
+using EcocementBot.States.Screens.Admin.Marks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -36,9 +36,9 @@ public class AdminScreen : IScreen
     public Task HandleInput(Message message)
     {
         if (message.Text == "💼 Клієнти")
-            return _navigator.PushScreen<ClientsScreen>(message.From!, message.Chat);
+            return _navigator.Open<ClientsScreen>(message.From!, message.Chat);
         if(message.Text == "🔖 Марки")
-            return _navigator.PushScreen<MarksScreen>(message.From!, message.Chat);
+            return _navigator.Open<MarksScreen>(message.From!, message.Chat);
 
         return Task.CompletedTask;
     }

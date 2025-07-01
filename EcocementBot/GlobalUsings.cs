@@ -1,0 +1,1 @@
+﻿global using TelegramUser = Telegram.Bot.Types.User;

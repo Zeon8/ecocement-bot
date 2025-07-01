@@ -1,4 +1,5 @@
 ﻿using EcocementBot.Data.Enums;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 
 namespace EcocementBot.Data.Entities;
