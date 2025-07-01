@@ -42,6 +42,9 @@ public class ApplicationStartup
 
     private async Task Handle(Message message)
     {
+        if (message.Chat.Type != ChatType.Private)
+            return;
+
         if (message.Text != "/start" && _navigator.TryGetScreen(message.From!, out IScreen? screen))
         {
             try

@@ -24,6 +24,7 @@ builder.Services.AddSingleton(new TelegramBotClient(botToken));
 builder.Services.AddSingleton<Navigator>();
 builder.Services.AddSingleton<ApplicationStartup>();
 builder.Services.AddSingleton<SessionService>();
+builder.Services.AddSingleton<OrderSender>();
 
 builder.Services.AddTransient<AdminService>();
 builder.Services.AddTransient<AdminScreen>();

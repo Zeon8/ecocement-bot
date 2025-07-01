@@ -1,6 +1,7 @@
 ﻿using EcocementBot.Data.Entities;
 using EcocementBot.Services;
 using EcocementBot.States.Screens.Admin;
+using EcocementBot.States.Screens.Clients;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -16,9 +17,9 @@ public class AuthorizationScreen : IScreen
 
     private string _phoneNumber;
 
-    public AuthorizationScreen(TelegramBotClient client, 
-        Navigator navigator, 
-        UserService userService, 
+    public AuthorizationScreen(TelegramBotClient client,
+        Navigator navigator,
+        UserService userService,
         SessionService sessionService)
     {
         _client = client;
@@ -69,11 +70,15 @@ public class AuthorizationScreen : IScreen
 
         await _userService.UpdateTelegramUserId(_phoneNumber, message.From!.Id);
 
+        await _client.SendMessage(message.Chat, "✅ Авторизовано.");
+
         if (user.UserType == UserType.Admin)
-            await _navigator.Open<AdminScreen>(message.From, message.Chat);
-        else
         {
-            _sessionService.Authorize(message.From.Id, user.PhoneNumber);
+            await _navigator.Open<AdminScreen>(message.From, message.Chat);
+            return;
         }
+
+        _sessionService.Authorize(message.From.Id, user.PhoneNumber);
+        await _navigator.Open<OrderScreen>(message.From, message.Chat);
     }
 }
