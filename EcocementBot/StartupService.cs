@@ -7,24 +7,25 @@ using EcocementBot.States.Screens.Auth;
 using EcocementBot.Data.Entities;
 using EcocementBot.States.Screens.Admin;
 using EcocementBot.States.Screens.Clients;
+using Microsoft.Extensions.Logging;
 
 namespace EcocementBot;
 
-public class ApplicationStartup
+public class StartupService : BackgroundService
 {
     private readonly TelegramBotClient _client;
     private readonly AdminService _adminMenu;
     private readonly Navigator _navigator;
     private readonly UserService _userService;
     private readonly SessionService _sessionService;
-    private readonly ILogger<ApplicationStartup> _logger;
+    private readonly ILogger<StartupService> _logger;
 
-    public ApplicationStartup(TelegramBotClient client,
+    public StartupService(TelegramBotClient client,
         AdminService adminMenu,
         Navigator navigator,
         UserService userService,
         SessionService sessionService,
-        ILogger<ApplicationStartup> logger)
+        ILogger<StartupService> logger)
     {
         _client = client;
         _adminMenu = adminMenu;
@@ -34,9 +35,9 @@ public class ApplicationStartup
         _logger = logger;
     }
 
-    public async Task Start()
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await _client.GetMe();
+        TelegramUser user = await _client.GetMe(stoppingToken);
         _client.OnMessage += (message, _) => Handle(message);
     }
 

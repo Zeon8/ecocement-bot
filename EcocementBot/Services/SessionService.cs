@@ -4,9 +4,10 @@ namespace EcocementBot.Services;
 
 public class SessionService
 {
-    private ConcurrentDictionary<long, string> _sessions = new();
+    private readonly ConcurrentDictionary<long, string> _sessions = new();
 
-    public void Authorize(long userId, string phoneNumber) => _sessions[userId] = phoneNumber;
+    public void Authorize(long userId, string phoneNumber) 
+        => _sessions[userId] = phoneNumber;
 
     public string GetPhoneNumber(long userId) => _sessions[userId];
 

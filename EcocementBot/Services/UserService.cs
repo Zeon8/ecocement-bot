@@ -24,12 +24,34 @@ public class UserService
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber);
 
-    public async Task UpdateTelegramUserId(string phoneNumber, long telegramUserId)
+    public Task UpdateTelegramUserId(string phoneNumber, long telegramUserId)
     {
-        var user = await _context.Users.FindAsync([phoneNumber]) 
-            ?? throw new UnauthorizedException();
+        return _context.Users
+            .Where(u => u.PhoneNumber == phoneNumber)
+            .ExecuteUpdateAsync(o => o.SetProperty(u => u.TelegramUserId, telegramUserId));
+    }
 
-        user!.TelegramUserId = telegramUserId;
+    public Task UpdateUserPhone(string oldPhoneNumber, string newPhoneNumber)
+    {
+        return _context.Users
+            .Where(u => u.PhoneNumber == oldPhoneNumber)
+            .ExecuteUpdateAsync(o => o.SetProperty(u => u.PhoneNumber, newPhoneNumber));
+    }
+
+    public async Task CreateUser(string phoneNumber)
+    {
+        await _context.Users.AddAsync(new User
+        {
+            PhoneNumber = phoneNumber,
+        });
+
         await _context.SaveChangesAsync();
+    }
+
+    public async Task DeleteUser(string phoneNumber)
+    {
+        await _context.Users
+            .Where(u => u.PhoneNumber == phoneNumber)
+            .ExecuteDeleteAsync();
     }
 }

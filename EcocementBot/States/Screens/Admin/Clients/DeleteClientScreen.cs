@@ -12,23 +12,39 @@ public class DeleteClientScreen : IScreen
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
     private readonly ClientService _clientService;
+    private readonly UserService _userService;
 
-    public DeleteClientScreen(TelegramBotClient client, Navigator navigator, ClientService clientService)
+    public DeleteClientScreen(TelegramBotClient client, 
+        Navigator navigator, 
+        ClientService clientService, 
+        UserService userService)
     {
         _client = client;
         _navigator = navigator;
         _clientService = clientService;
+        _userService = userService;
     }
 
-    public Task EnterAsync(User user, Chat chat)
+    public async Task EnterAsync(User user, Chat chat)
     {
-        return _client.SendMessage(chat, "*🗑 Видалення клієнта*\n\nВведіть номер клієнта:",
+        IEnumerable<string> phoneNumbers = await _clientService.GetPhoneNumbers();
+        await _client.SendMessage(chat, "*🗑 Видалення клієнта*\n\nВведіть номер клієнта:",
             parseMode: ParseMode.Markdown,
-            replyMarkup: CommonButtons.CancelButton);
+            replyMarkup: new ReplyKeyboardMarkup
+            {
+                Keyboard =
+                [
+                    ..phoneNumbers.Select(p => new[]{ new KeyboardButton(p) }).ToArray(),
+                    [CommonButtons.CancelButton],
+                ]
+            });
     }
 
     public async Task HandleInput(Message message)
     {
+        if (message.Text is null)
+            return;
+
         if(message.Text == CommonButtons.CancelButton.Text)
         {
             await _navigator.GoBack(message.From!, message.Chat);
@@ -39,13 +55,14 @@ public class DeleteClientScreen : IScreen
         try
         {
             await _clientService.DeleteClient(phoneNumber);
-            
         }
         catch(ClientNotFoundException)
         {
             await _client.SendMessage(message.Chat, "✖️ Клієнта з таким номером не знайдено.\n\n Введіть номер клієнта:");
             return;
         }
+
+        await _userService.DeleteUser(phoneNumber);
 
         await _client.SendMessage(message.Chat, "Клієнта видалено ✅.");
         await _navigator.GoBack(message.From!, message.Chat);

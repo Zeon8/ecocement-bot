@@ -43,13 +43,13 @@ public class MarksScreen : IScreen
     public Task HandleInput(Message message)
     {
         if (message.Text == CommonButtons.BackButton.Text)
-            _navigator.GoBack(message.From!, message.Chat);
+            return _navigator.GoBack(message.From!, message.Chat);
 
-        if (message.Text == "➕ Створити")
-            _navigator.Open<CreateMarkScreen>(message.From!, message.Chat);
-        else if (message.Text == "🗑 Видалити")
-            _navigator.Open<RemoveMarkScreen>(message.From!, message.Chat);
-
-        return Task.CompletedTask;
+        return message.Text switch
+        {
+            "➕ Створити" => _navigator.Open<CreateMarkScreen>(message.From!, message.Chat),
+            "🗑 Видалити" => _navigator.Open<RemoveMarkScreen>(message.From!, message.Chat),
+            _ => _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору."),
+        };
     }
 }

@@ -20,26 +20,26 @@ public class AdminScreen : IScreen
 
     public Task EnterAsync(User user, Chat chat)
     {
-        return _client.SendMessage(chat, "*🏛 Головне меню*\nОберіть:", parseMode: ParseMode.Markdown, 
+        return _client.SendMessage(chat, "*🏛 Головне меню*\nОберіть:", parseMode: ParseMode.Markdown,
             replyMarkup: new ReplyKeyboardMarkup
-        {
-            Keyboard =
-               [
+            {
+                Keyboard =
+                [
                    [
                         new KeyboardButton("💼 Клієнти"),
                         new KeyboardButton("🔖 Марки"),
-                    ]
-               ]
-        });
+                   ]
+                ]
+            });
     }
 
     public Task HandleInput(Message message)
     {
-        if (message.Text == "💼 Клієнти")
-            return _navigator.Open<ClientsScreen>(message.From!, message.Chat);
-        if(message.Text == "🔖 Марки")
-            return _navigator.Open<MarksScreen>(message.From!, message.Chat);
-
-        return Task.CompletedTask;
+        return message.Text switch
+        {
+            "💼 Клієнти" => _navigator.Open<ClientsScreen>(message.From!, message.Chat),
+            "🔖 Марки" => _navigator.Open<MarksScreen>(message.From!, message.Chat),
+            _ => _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору."),
+        };
     }
 }

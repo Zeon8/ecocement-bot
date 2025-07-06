@@ -14,7 +14,7 @@ public class User
     [Key]
     public required string PhoneNumber { get; set; }
 
-    public required UserType UserType { get; set; }
+    public UserType UserType { get; set; } = UserType.Client;
 
     public long? TelegramUserId { get; set; }
 }

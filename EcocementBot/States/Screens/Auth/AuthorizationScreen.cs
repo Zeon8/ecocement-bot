@@ -15,7 +15,7 @@ public class AuthorizationScreen : IScreen
     private readonly UserService _userService;
     private readonly SessionService _sessionService;
 
-    private string _phoneNumber;
+    private string? _phoneNumber;
 
     public AuthorizationScreen(TelegramBotClient client,
         Navigator navigator,
@@ -49,36 +49,36 @@ public class AuthorizationScreen : IScreen
 
             _phoneNumber = message.Contact.PhoneNumber;
 
-            await Check(message);
+            await Check(message.Chat, message.From!);
+            return;
         }
 
         if (message.Text == "🔁 Повторити вхід")
-            await Check(message);
-
+            await Check(message.Chat, message.From!);
     }
 
-    private async Task Check(Message message)
+    private async Task Check(Chat chat, TelegramUser telegramUser)
     {
-        var user = await _userService.GetUser(_phoneNumber);
+        var user = await _userService.GetUser(_phoneNumber!);
 
         if (user is null)
         {
-            await _client.SendMessage(message.Chat, "Ви не авторизовані. Для реєстрації зв'яжіться з менеджером: [контакт]",
+            await _client.SendMessage(chat, "Ви не авторизовані. Для реєстрації зв'яжіться з менеджером: [контакт]",
                 replyMarkup: new KeyboardButton("🔁 Повторити вхід"));
             return;
         }
 
-        await _userService.UpdateTelegramUserId(_phoneNumber, message.From!.Id);
+        await _userService.UpdateTelegramUserId(_phoneNumber!, telegramUser.Id);
 
-        await _client.SendMessage(message.Chat, "✅ Авторизовано.");
+        await _client.SendMessage(chat, "✅ Авторизовано.");
 
         if (user.UserType == UserType.Admin)
         {
-            await _navigator.Open<AdminScreen>(message.From, message.Chat);
+            await _navigator.Open<AdminScreen>(telegramUser, chat);
             return;
         }
 
-        _sessionService.Authorize(message.From.Id, user.PhoneNumber);
-        await _navigator.Open<OrderScreen>(message.From, message.Chat);
+        _sessionService.Authorize(telegramUser.Id, user.PhoneNumber);
+        await _navigator.Open<OrderScreen>(telegramUser, chat);
     }
 }

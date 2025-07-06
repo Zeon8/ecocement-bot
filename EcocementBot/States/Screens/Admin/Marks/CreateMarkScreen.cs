@@ -27,6 +27,9 @@ public class CreateMarkScreen : IScreen
 
     public async Task HandleInput(Message message)
     {
+        if (message.Text is null)
+            return;
+
         if (message.Text == CommonButtons.CancelButton.Text)
         {
             await _navigator.GoBack(message.From!, message.Chat);

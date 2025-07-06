@@ -8,9 +8,11 @@ using EcocementBot.States.Screens.Admin.Marks;
 using EcocementBot.States.Screens.Auth;
 using EcocementBot.States.Screens.Clients;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Telegram.Bot;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = Host.CreateApplicationBuilder();
 
 var botToken = builder.Configuration["BotToken"] ?? throw new InvalidOperationException("BotToken not found.");
 var dbFile = builder.Configuration["DbFile"] ?? throw new InvalidOperationException("DbFile not found.");
@@ -22,7 +24,6 @@ builder.Services.AddSingleton<MarkService>();
 
 builder.Services.AddSingleton(new TelegramBotClient(botToken));
 builder.Services.AddSingleton<Navigator>();
-builder.Services.AddSingleton<ApplicationStartup>();
 builder.Services.AddSingleton<SessionService>();
 builder.Services.AddSingleton<OrderSender>();
 
@@ -38,8 +39,7 @@ builder.Services.AddTransient<RemoveMarkScreen>();
 builder.Services.AddTransient<AuthorizationScreen>();
 builder.Services.AddTransient<OrderScreen>();
 
-var app = builder.Build();
+builder.Services.AddHostedService<StartupService>();
 
-await app.Services.GetRequiredService<ApplicationStartup>().Start();
-
-app.Run();
+IHost host = builder.Build();
+host.Run();

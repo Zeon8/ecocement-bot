@@ -50,4 +50,17 @@ public class ClientService
         _context.Clients.Remove(client);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<IEnumerable<string>> GetPhoneNumbers()
+    {
+        return await _context.Clients
+            .Select(c => c.PhoneNumber)
+            .ToArrayAsync();
+    }
+
+    public async Task<IEnumerable<Client>> GetClients()
+    {
+        return await _context.Clients
+            .ToArrayAsync();
+    }
 }

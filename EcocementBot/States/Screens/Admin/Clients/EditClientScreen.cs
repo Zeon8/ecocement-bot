@@ -2,6 +2,7 @@
 using EcocementBot.Data.Enums;
 using EcocementBot.Models;
 using EcocementBot.Services;
+using System.Text.RegularExpressions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -15,23 +16,39 @@ public class EditClientScreen : IScreen
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
     private readonly ClientService _clientService;
+    private readonly UserService _userService;
 
-    public EditClientScreen(TelegramBotClient client, Navigator navigator, ClientService clientService)
+    public EditClientScreen(TelegramBotClient client,
+        Navigator navigator,
+        ClientService clientService,
+        UserService userService)
     {
         _client = client;
         _navigator = navigator;
         _clientService = clientService;
+        _userService = userService;
     }
 
-    public Task EnterAsync(TelegramUser user, Chat chat)
+    public async Task EnterAsync(TelegramUser user, Chat chat)
     {
-        return _client.SendMessage(chat, "*✍️ Редагування клієнта*\n\nВведіть номер клієнта:",
+        IEnumerable<string> phoneNumbers = await _clientService.GetPhoneNumbers();
+        await _client.SendMessage(chat, "*✍️ Редагування клієнта*\n\nВведіть номер клієнта:",
             parseMode: ParseMode.Markdown,
-            replyMarkup: CommonButtons.CancelButton);
+            replyMarkup: new ReplyKeyboardMarkup
+            {
+                Keyboard = 
+                [
+                    ..phoneNumbers.Select(p => new[]{ new KeyboardButton(p) }).ToArray(),
+                    [CommonButtons.CancelButton],
+                ]
+            });
     }
 
     public async Task HandleInput(Message message)
     {
+        if (message.Text is null)
+            return;
+
         if (message.Text == CommonButtons.CancelButton.Text)
         {
             await _navigator.GoBack(message.From!, message.Chat);
@@ -60,11 +77,23 @@ public class EditClientScreen : IScreen
                     Address = client.Address,
                     PaymentType = client.PaymentType,
                 };
+                _state.OldPhoneNumber = phoneNumber;
 
                 _state.Type = StateTypes.EnteringPhoneNumber;
                 break;
             case StateTypes.EnteringPhoneNumber:
-                _state.Model.PhoneNumber = message.Text;
+                if (message.Contact is Contact contact)
+                    _state.Model.PhoneNumber = contact.PhoneNumber;
+                else
+                {
+                    if (!CommonRegex.PhoneNumber.IsMatch(message.Text))
+                    {
+                        await _client.SendMessage(message.Chat, "✖️ Неправильний формат.");
+                        break;
+                    }
+
+                    _state.Model.PhoneNumber = message.Text;
+                }
 
                 await _client.SendMessage(message.Chat,
                     text: "Введіть назву підприємства:",
@@ -113,8 +142,12 @@ public class EditClientScreen : IScreen
                     break;
                 }
                 await _clientService.UpdateClient(_state.Model);
+
+                if(_state.OldPhoneNumber != _state.Model.PhoneNumber)
+                    await _userService.UpdateUserPhone(_state.OldPhoneNumber!, _state.Model.PhoneNumber);
+
                 await _client.SendMessage(message.Chat, "Дані клієнта оновлено ✅.");
-                await _navigator.GoBack(message.From, message.Chat);
+                await _navigator.GoBack(message.From!, message.Chat);
                 return;
         }
 
@@ -147,6 +180,7 @@ public class EditClientScreen : IScreen
         public StateTypes Type { get; set; } = StateTypes.FindClient;
 
         public ClientModel Model { get; set; } = new();
-    }
 
+        public string? OldPhoneNumber { get; set; }
+    }
 }
