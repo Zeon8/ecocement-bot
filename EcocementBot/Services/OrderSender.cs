@@ -15,7 +15,7 @@ public class OrderSender
     private readonly ClientService _clientService;
     private readonly IConfiguration _configuration;
 
-    private static CultureInfo _ukrCultureInfo = new CultureInfo("uk-UA");
+    private static readonly CultureInfo s_culture = new CultureInfo("uk-UA");
 
     private static readonly Dictionary<PaymentType, string> s_playmentTypeStrings = new()
     {
@@ -54,12 +54,13 @@ public class OrderSender
 
         StringBuilder builder = new();
 
-        var date = model.Date.ToString(_ukrCultureInfo);
-        var dateOfWeek = _ukrCultureInfo.DateTimeFormat.GetDayName(model.Date.DayOfWeek);
+        var date = model.Date.ToString(s_culture);
+        var dateOfWeek = s_culture.DateTimeFormat.GetDayName(model.Date.DayOfWeek);
         builder.AppendLine($"Дата: {date} ({dateOfWeek})");
 
         builder.AppendLine($"Замовник: {client!.Name}");
-        builder.AppendLine($"Адреса: {client.Address}");
+        if(model.ReceiveType == OrderReceivingType.Delivery)
+            builder.AppendLine($"Адреса: {client.Address}");
         
 
         string carsExpression;

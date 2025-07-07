@@ -40,12 +40,12 @@ public class StartupService : BackgroundService
         await _persistanceService.Load();
 
         TelegramUser user = await _client.GetMe(stoppingToken);
-        _client.OnMessage += (message, _) => Handle(message);
+        _client.OnMessage += Handle;
     }
 
-    private async Task Handle(Message message)
+    private async Task Handle(Message message, UpdateType updateType)
     {
-        if (message.Chat.Type != ChatType.Private)
+        if (message.Chat.Type != ChatType.Private || updateType == UpdateType.EditedMessage)
             return;
 
         if (message.Text == "/start")
@@ -58,7 +58,8 @@ public class StartupService : BackgroundService
             }
             catch (Exception exception)
             {
-                _logger.LogError(exception, "An exception was thrown:");
+                _logger.LogError(exception, "An exception was thrown.");
+                return;
             }
 
             await _persistanceService.Save();

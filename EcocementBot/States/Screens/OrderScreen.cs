@@ -30,7 +30,8 @@ public class OrderScreen : IScreen
     private readonly ClientService _clientService;
     private readonly SessionService _sessionService;
     private readonly OrderSender _sender;
-    private readonly CultureInfo _culture = new CultureInfo("uk-UA");
+
+    private static readonly CultureInfo s_culture = new CultureInfo("uk-UA");
 
     private readonly Dictionary<OrderStateType, Step> _steps;
 
@@ -124,7 +125,9 @@ public class OrderScreen : IScreen
                 Handle = async message =>
                 {
                     var dateString = message.Text;
-                    if (!DateTime.TryParseExact(dateString, "dd.MM", CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out DateTime dateTime))
+                    if (!DateTime.TryParseExact(dateString, "dd.MM", CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out DateTime dateTime)
+                        || dateTime < DateTime.Today 
+                        || (dateTime == DateTime.Today && DateTime.Now.Hour >= 16))
                     {
                         await _client.SendMessage(message.Chat, "✖️ Хибна дата.");
                         return;
@@ -137,15 +140,13 @@ public class OrderScreen : IScreen
             {
                 Ask = (chat, _) =>
                 {
-                    return _client.SendMessage(chat, "Оберіть спосіб доставки:",
+                    return _client.SendMessage(chat, "Оберіть спосіб отримання:",
                         replyMarkup: new ReplyKeyboardMarkup
                         {
                             Keyboard =
                             [
-                                [
-                                new KeyboardButton("🚚 Доставка"),
-                                new KeyboardButton("🏗 Самовивіз"),
-                            ]
+                                [new KeyboardButton("🚚 Доставка")],
+                                [new KeyboardButton("🏗 Самовивіз")],
                             ],
                         });
                 },
@@ -369,10 +370,12 @@ public class OrderScreen : IScreen
                     var client = await _clientService.GetClient(phoneNumber);
 
                     StringBuilder builder = new();
-                    builder.AppendLine($"Дата: {State.Date.ToString(_culture)}");
+                    builder.AppendLine($"Дата: {State.Date.ToString(s_culture)}");
                     builder.AppendLine($"Замовник: {client!.Name}");
                     builder.AppendLine($"Адреса: {client.Address}");
                     string stringPaymentType = s_paymentTypeValues.First(p => p.Value == State.PaymentType).Key;
+                    var receiveType = State.ReceiveType == OrderReceivingType.Delivery ? "🚚 Доставка" : "🏗 Самовивіз";
+                    builder.AppendLine($"Спосіб отримання: {receiveType}");
                     builder.AppendLine($"Форма оплати: {stringPaymentType}");
                     builder.AppendLine($"Марка цементу: {State.Mark}"); ;
                     if (State.OrderCarTime is General general)
@@ -395,8 +398,9 @@ public class OrderScreen : IScreen
                     {
                         Keyboard =
                         [
-                            [new KeyboardButton("✍️ Редагувати")],
                             [new KeyboardButton("✅ Готово")],
+                            [new KeyboardButton("✍️ Редагувати")],
+                            [new KeyboardButton("🔄 Оформити замовлення наново")],
                         ]
                     });
                 },
@@ -413,7 +417,6 @@ public class OrderScreen : IScreen
                             PaymentType = State.PaymentType,
                             ReceiveType = State.ReceiveType,
                         });
-                        
                         State.Type = OrderStateType.Finish;
                     }
                     else if(message.Text == "✍️ Редагувати")
@@ -421,6 +424,8 @@ public class OrderScreen : IScreen
                         State.IsEditMode = true;
                         State.Type = OrderStateType.SelectEdit;
                     }
+                    else if(message.Text == "🔄 Оформити замовлення наново")
+                        State.Type = OrderStateType.SelectDate;
                     else
                         await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
                 }
@@ -433,13 +438,15 @@ public class OrderScreen : IScreen
                 }),
                 Handle = async message =>
                 {
-
-
                     if (!s_editStates.TryGetValue(message.Text!, out OrderStateType stateType))
                     {
                         await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
                         return;
                     }
+
+                    if(stateType == OrderStateType.SelectFinalAction)
+                        State.IsEditMode = false;
+
                     State.Type = stateType;
                 }
             },
@@ -457,7 +464,7 @@ public class OrderScreen : IScreen
                     if (message.Text == "➕ Нове замовлення")
                         State.Type = OrderStateType.SelectDate;
 
-                    return Task.CompletedTask;
+                    return _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
                 }
             }
         };
@@ -500,7 +507,7 @@ public class OrderScreen : IScreen
     private static string ToTimeOnly(CarDeliveryTime CarDeliveryTime)
     {
         if (CarDeliveryTime.TimeOfDay == TimeOfDay.Custom)
-            return CarDeliveryTime.CustomTime!.Value.ToString(CultureInfo.CurrentUICulture)!;
+            return CarDeliveryTime.CustomTime!.Value.ToString(s_culture)!;
 
         return s_timeOfTheDayValues.First(i => i.Value == CarDeliveryTime.TimeOfDay).Key;
     }
