@@ -19,6 +19,12 @@ public class UserService
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.TelegramUserId == userId);
 
+    public Task<string?> GetPhoneNumber(long userId) => _context.Users
+        .AsNoTracking()
+        .Where(u => u.TelegramUserId == userId)
+        .Select(u => u.PhoneNumber)
+        .FirstOrDefaultAsync();
+
     public Task<User?> GetUser(string phoneNumber)
         => _context.Users
             .AsNoTracking()

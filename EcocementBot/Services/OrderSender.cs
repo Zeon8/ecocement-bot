@@ -11,16 +11,16 @@ namespace EcocementBot.Services;
 public class OrderSender
 {
     private readonly TelegramBotClient _client;
-    private readonly SessionService _sessionService;
     private readonly ClientService _clientService;
+    private readonly UserService _userService;
     private readonly IConfiguration _configuration;
 
     private static readonly CultureInfo s_culture = new CultureInfo("uk-UA");
 
-    private static readonly Dictionary<PaymentType, string> s_playmentTypeStrings = new()
+    private static readonly Dictionary<OrderPaymentType, string> s_playmentTypeStrings = new()
     {
-        [PaymentType.Card] = "Безготівкова",
-        [PaymentType.Cash] = "Готівка",
+        [OrderPaymentType.Card] = "Безготівкова",
+        [OrderPaymentType.Cash] = "Готівка",
     };
 
     private static readonly Dictionary<TimeOfDay, string> s_timeOfTheDayStrings = new()
@@ -30,12 +30,12 @@ public class OrderSender
         [TimeOfDay.Evening] = "Вечір",
     };
 
-    public OrderSender(TelegramBotClient client, SessionService sessionService, ClientService clientService, IConfiguration configuration)
+    public OrderSender(TelegramBotClient client, ClientService clientService, IConfiguration configuration, UserService userService)
     {
         _client = client;
-        _sessionService = sessionService;
         _clientService = clientService;
         _configuration = configuration;
+        _userService = userService;
     }
 
     public async Task Send(User user, OrderModel model)
@@ -49,8 +49,8 @@ public class OrderSender
 
     private async Task<string> FormatOrder(User user, OrderModel model)
     {
-        var phoneNumber = _sessionService.GetPhoneNumber(user.Id);
-        var client = await _clientService.GetClient(phoneNumber);
+        var phoneNumber = await _userService.GetPhoneNumber(user.Id);
+        var client = await _clientService.GetClient(phoneNumber!);
 
         StringBuilder builder = new();
 

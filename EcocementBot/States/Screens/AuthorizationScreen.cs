@@ -1,30 +1,28 @@
 ﻿using EcocementBot.Data.Entities;
 using EcocementBot.Services;
 using EcocementBot.States.Screens.Admin;
+using System.Text.RegularExpressions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace EcocementBot.States.Screens;
 
-public class AuthorizationScreen : IScreen
+public partial class AuthorizationScreen : IScreen
 {
     public string? PhoneNumber { get; set; }
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
     private readonly UserService _userService;
-    private readonly SessionService _sessionService;
 
     public AuthorizationScreen(TelegramBotClient client,
         Navigator navigator,
-        UserService userService,
-        SessionService sessionService)
+        UserService userService)
     {
         _client = client;
         _navigator = navigator;
         _userService = userService;
-        _sessionService = sessionService;
     }
 
     public Task EnterAsync(TelegramUser user, Chat chat)
@@ -46,7 +44,7 @@ public class AuthorizationScreen : IScreen
                 return;
             }
 
-            PhoneNumber = message.Contact.PhoneNumber;
+            PhoneNumber = CommonRegex.NonDigitSymbol.Replace(message.Contact.PhoneNumber, string.Empty);
 
             await Check(message.Chat, message.From!);
             return;
@@ -77,7 +75,8 @@ public class AuthorizationScreen : IScreen
             return;
         }
 
-        _sessionService.Authorize(telegramUser.Id, user.PhoneNumber);
         await _navigator.Open<OrderScreen>(telegramUser, chat);
     }
+
+
 }

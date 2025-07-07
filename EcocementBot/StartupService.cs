@@ -16,21 +16,18 @@ public class StartupService : BackgroundService
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
     private readonly UserService _userService;
-    private readonly SessionService _sessionService;
     private readonly StatePersistanceService _persistanceService;
     private readonly ILogger<StartupService> _logger;
 
     public StartupService(TelegramBotClient client,
         Navigator navigator,
         UserService userService,
-        SessionService sessionService,
         ILogger<StartupService> logger,
         StatePersistanceService persistanceService)
     {
         _client = client;
         _navigator = navigator;
         _userService = userService;
-        _sessionService = sessionService;
         _logger = logger;
         _persistanceService = persistanceService;
     }
@@ -79,7 +76,6 @@ public class StartupService : BackgroundService
             return;
         }
 
-        _sessionService.Authorize(message.From.Id, user.PhoneNumber);
         await _navigator.Open<OrderScreen>(message.From, message.Chat);
         await _persistanceService.Save();
     }

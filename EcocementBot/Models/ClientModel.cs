@@ -10,5 +10,5 @@ public class ClientModel
 
     public string Address { get; set; }
 
-    public PaymentType PaymentType { get; set; }
+    public ClientPaymentType PaymentType { get; set; }
 }

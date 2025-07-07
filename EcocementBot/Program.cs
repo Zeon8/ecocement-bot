@@ -23,7 +23,6 @@ builder.Services.AddSingleton<MarkService>();
 
 builder.Services.AddSingleton(new TelegramBotClient(botToken));
 builder.Services.AddSingleton<Navigator>();
-builder.Services.AddSingleton<SessionService>();
 builder.Services.AddSingleton<OrderSender>();
 
 builder.Services.AddSingleton<StatePersistanceService>();

@@ -82,6 +82,7 @@ public partial class CreateClientScreen : IScreen
                     Keyboard =
                        [
                            [new KeyboardButton("💵 Готівка"), new KeyboardButton("💳 Карта")],
+                           [new KeyboardButton("💳 Карта або 💵 Готівка")],
                            [CommonButtons.CancelButton],
                        ]
                 });
@@ -89,9 +90,11 @@ public partial class CreateClientScreen : IScreen
                 break;
             case StateTypes.EnteringPaymentType:
                 if (message.Text == "💵 Готівка")
-                    State.Model.PaymentType = PaymentType.Cash;
+                    State.Model.PaymentType = ClientPaymentType.Cash;
                 else if (message.Text == "💳 Карта")
-                    State.Model.PaymentType = PaymentType.Card;
+                    State.Model.PaymentType = ClientPaymentType.Card;
+                else if (message.Text == "💳 Карта або 💵 Готівка")
+                    State.Model.PaymentType = ClientPaymentType.Both;
                 else
                 {
                     await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");

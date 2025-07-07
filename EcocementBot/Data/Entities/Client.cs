@@ -13,5 +13,5 @@ public class Client
 
     public required string Address { get; set; }
 
-    public required PaymentType PaymentType { get; set; }
+    public required ClientPaymentType PaymentType { get; set; }
 }

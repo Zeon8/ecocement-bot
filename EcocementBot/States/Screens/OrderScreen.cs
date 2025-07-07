@@ -28,7 +28,7 @@ public class OrderScreen : IScreen
     private readonly Navigator _navigator;
     private readonly MarkService _markService;
     private readonly ClientService _clientService;
-    private readonly SessionService _sessionService;
+    private readonly UserService _userService;
     private readonly OrderSender _sender;
 
     private static readonly CultureInfo s_culture = new CultureInfo("uk-UA");
@@ -67,10 +67,10 @@ public class OrderScreen : IScreen
         ["🕘 Власний час"] = TimeOfDay.Custom,
     };
 
-    private static readonly Dictionary<string, PaymentType> s_paymentTypeValues = new()
+    private static readonly Dictionary<string, OrderPaymentType> s_paymentTypeValues = new()
     {
-        ["💵 Готівка"] = PaymentType.Cash,
-        ["🏦 Безготівка"] = PaymentType.Card,
+        ["💵 Готівка"] = OrderPaymentType.Cash,
+        ["🏦 Безготівка"] = OrderPaymentType.Card,
     };
 
     private static readonly Dictionary<string, OrderStateType> s_editStates = new()
@@ -87,7 +87,7 @@ public class OrderScreen : IScreen
         Navigator navigator,
         MarkService markService,
         ClientService clientService,
-        SessionService sessionService,
+        UserService userService,
         IConfiguration configuration,
         OrderSender sender)
     {
@@ -95,7 +95,7 @@ public class OrderScreen : IScreen
         _navigator = navigator;
         _markService = markService;
         _clientService = clientService;
-        _sessionService = sessionService;
+        _userService = userService;
         _sender = sender;
 
         _steps = new()
@@ -257,7 +257,7 @@ public class OrderScreen : IScreen
                     if (timeOfDay != TimeOfDay.Custom)
                     {
                         State.OrderCarTime = new General(new CarDeliveryTime(timeOfDay));
-                        SetStateOrEdit(OrderStateType.SelectPaymentType);
+                        SelectPaymentType();
                         return;
                     }
 
@@ -276,7 +276,7 @@ public class OrderScreen : IScreen
                     }
 
                     State.OrderCarTime = new General(new CarDeliveryTime(State.CurrentTimeOfDay, time));
-                    SetStateOrEdit(OrderStateType.SelectPaymentType);
+                    SelectPaymentType();
                 }
             },
             [OrderStateType.SelectCar] = new Step()
@@ -353,7 +353,7 @@ public class OrderScreen : IScreen
                     if (message.Text is null)
                         return;
 
-                    if (!s_paymentTypeValues.TryGetValue(message.Text, out PaymentType paymentType))
+                    if (!s_paymentTypeValues.TryGetValue(message.Text, out OrderPaymentType paymentType))
                     {
                         await _client.SendMessage(message.Chat, "✖️ Неправильний вибір.");
                         return;
@@ -366,8 +366,8 @@ public class OrderScreen : IScreen
             {
                 Ask = async (chat, user) =>
                 {
-                    var phoneNumber = _sessionService.GetPhoneNumber(user.Id);
-                    var client = await _clientService.GetClient(phoneNumber);
+                    var phoneNumber = await _userService.GetPhoneNumber(user.Id);
+                    var client = await _clientService.GetClient(phoneNumber!);
 
                     StringBuilder builder = new();
                     builder.AppendLine($"Дата: {State.Date.ToString(s_culture)}");
@@ -434,7 +434,9 @@ public class OrderScreen : IScreen
             {
                 Ask = (chat, user) => _client.SendMessage(chat, "Оберіть зміну:", replyMarkup: new ReplyKeyboardMarkup
                 {
-                    Keyboard = s_editStates.Keys.Select(k => new[] { new KeyboardButton(k) }).ToArray()
+                    Keyboard = s_editStates.Keys
+                        .Where(k => k != "💸 Змінити форму оплати" || State.AllowSelectPaymentType)
+                        .Select(k => new[] { new KeyboardButton(k) }).ToArray()
                 }),
                 Handle = async message =>
                 {
@@ -470,9 +472,25 @@ public class OrderScreen : IScreen
         };
     }
 
-    public Task EnterAsync(TelegramUser user, Chat chat)
+    private void SelectPaymentType()
     {
-        return _steps[State.Type].Ask(chat, user);
+        if (State.AllowSelectPaymentType)
+            SetStateOrEdit(OrderStateType.SelectPaymentType);
+        else
+            State.Type = OrderStateType.SelectFinalAction;
+    }
+
+    public async Task EnterAsync(TelegramUser telegramUser, Chat chat)
+    {
+        var phone = await _userService.GetPhoneNumber(telegramUser.Id);
+        var client = await _clientService.GetClient(phone!);
+
+        if(client!.PaymentType == ClientPaymentType.Both)
+            State.AllowSelectPaymentType = true;
+        else
+            State.PaymentType = (OrderPaymentType)client!.PaymentType;
+
+        await _steps[State.Type].Ask(chat, telegramUser);
     }
 
     public async Task HandleInput(Message message)
@@ -521,7 +539,7 @@ public class OrderScreen : IScreen
     private void FinishSettingCars(Individual individual)
     {
         if (individual.CarTimes.Count == State.CarsCount)
-            SetStateOrEdit(OrderStateType.SelectPaymentType);
+            SelectPaymentType();
         else
             State.Type = OrderStateType.SelectCar;
     }
@@ -546,7 +564,9 @@ public class OrderScreen : IScreen
 
         public Dictionary<string, int> CarSelection { get; set; } = [];
 
-        public PaymentType PaymentType { get; set; }
+        public OrderPaymentType PaymentType { get; set; }
+
+        public bool AllowSelectPaymentType;
 
         public bool IsEditMode { get; set; }
 

@@ -123,8 +123,9 @@ public class EditClientScreen : IScreen
 
                 string oldType = State.Model.PaymentType switch
                 {
-                    PaymentType.Cash => "💵 Готівка",
-                    PaymentType.Card => "💳 Карта",
+                    ClientPaymentType.Cash => "💵 Готівка",
+                    ClientPaymentType.Card => "💳 Карта",
+                    ClientPaymentType.Both => "💳 Карта або 💵 Готівка"
                 };
 
                 await _client.SendMessage(message.Chat, $"Виберіть спосіб оплати ({oldType}):",
@@ -133,6 +134,7 @@ public class EditClientScreen : IScreen
                         Keyboard =
                            [
                                [new KeyboardButton("💵 Готівка"), new KeyboardButton("💳 Карта")],
+                               [new KeyboardButton("💳 Карта або 💵 Готівка")],
                                [CommonButtons.CancelButton]
                            ]
                     });
@@ -141,9 +143,11 @@ public class EditClientScreen : IScreen
                 break;
             case StateTypes.EnteringPaymentType:
                 if (message.Text == "💵 Готівка")
-                    State.Model.PaymentType = PaymentType.Cash;
+                    State.Model.PaymentType = ClientPaymentType.Cash;
                 else if (message.Text == "💳 Карта")
-                    State.Model.PaymentType = PaymentType.Card;
+                    State.Model.PaymentType = ClientPaymentType.Card;
+                else if (message.Text == "💳 Карта або 💵 Готівка")
+                    State.Model.PaymentType = ClientPaymentType.Both;
                 else
                 {
                     await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");

@@ -59,6 +59,7 @@ public class Navigator
 
     public void Clear(TelegramUser user)
     {
-        Screens[user.Id].Clear();
+        if (Screens.TryGetValue(user.Id, out Stack<IScreen>? stack))
+            stack.Clear();
     }
 }

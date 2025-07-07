@@ -43,5 +43,5 @@ public class OrderModel
 
     public OrderCarTime CarTime { get; init; }
 
-    public PaymentType PaymentType { get; init; }
+    public OrderPaymentType PaymentType { get; init; }
 }
