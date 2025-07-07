@@ -12,7 +12,8 @@ namespace EcocementBot.States.Screens.Admin.Clients;
 
 public class EditClientScreen : IScreen
 {
-    private readonly FormState _state = new();
+    public FormState State { get; } = new();
+
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
     private readonly ClientService _clientService;
@@ -55,7 +56,7 @@ public class EditClientScreen : IScreen
             return;
         }
 
-        switch (_state.Type)
+        switch (State.Type)
         {
             case StateTypes.FindClient:
                 string? phoneNumber = message.Text;
@@ -70,20 +71,20 @@ public class EditClientScreen : IScreen
                     text: "Введіть новий номер:",
                     replyMarkup: CreateFieldKeyboard(client.PhoneNumber));
 
-                _state.Model = new()
+                State.Model = new()
                 {
                     Name = client.Name,
                     PhoneNumber = phoneNumber,
                     Address = client.Address,
                     PaymentType = client.PaymentType,
                 };
-                _state.OldPhoneNumber = phoneNumber;
+                State.OldPhoneNumber = phoneNumber;
 
-                _state.Type = StateTypes.EnteringPhoneNumber;
+                State.Type = StateTypes.EnteringPhoneNumber;
                 break;
             case StateTypes.EnteringPhoneNumber:
                 if (message.Contact is Contact contact)
-                    _state.Model.PhoneNumber = contact.PhoneNumber;
+                    State.Model.PhoneNumber = contact.PhoneNumber;
                 else
                 {
                     if (!CommonRegex.PhoneNumber.IsMatch(message.Text))
@@ -92,28 +93,28 @@ public class EditClientScreen : IScreen
                         break;
                     }
 
-                    _state.Model.PhoneNumber = message.Text;
+                    State.Model.PhoneNumber = message.Text;
                 }
 
                 await _client.SendMessage(message.Chat,
                     text: "Введіть назву підприємства:",
-                    replyMarkup: CreateFieldKeyboard(_state.Model.Name));
+                    replyMarkup: CreateFieldKeyboard(State.Model.Name));
 
-                _state.Type = StateTypes.EnteringName;
+                State.Type = StateTypes.EnteringName;
                 break;
             case StateTypes.EnteringName:
-                _state.Model.Name = message.Text;
+                State.Model.Name = message.Text;
 
                 await _client.SendMessage(message.Chat,
                     text: "Введіть адресу підприємства:",
-                    replyMarkup: CreateFieldKeyboard(_state.Model.Address));
+                    replyMarkup: CreateFieldKeyboard(State.Model.Address));
 
-                _state.Type = StateTypes.EnteringAddress;
+                State.Type = StateTypes.EnteringAddress;
                 break;
             case StateTypes.EnteringAddress:
-                _state.Model.Address = message.Text;
+                State.Model.Address = message.Text;
 
-                string oldType = _state.Model.PaymentType switch
+                string oldType = State.Model.PaymentType switch
                 {
                     PaymentType.Cash => "💵 Готівка",
                     PaymentType.Card => "💳 Карта",
@@ -129,22 +130,22 @@ public class EditClientScreen : IScreen
                            ]
                     });
 
-                _state.Type = StateTypes.EnteringPaymentType;
+                State.Type = StateTypes.EnteringPaymentType;
                 break;
             case StateTypes.EnteringPaymentType:
                 if (message.Text == "💵 Готівка")
-                    _state.Model.PaymentType = PaymentType.Cash;
+                    State.Model.PaymentType = PaymentType.Cash;
                 else if (message.Text == "💳 Карта")
-                    _state.Model.PaymentType = PaymentType.Card;
+                    State.Model.PaymentType = PaymentType.Card;
                 else
                 {
                     await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
                     break;
                 }
-                await _clientService.UpdateClient(_state.Model);
+                await _clientService.UpdateClient(State.Model);
 
-                if(_state.OldPhoneNumber != _state.Model.PhoneNumber)
-                    await _userService.UpdateUserPhone(_state.OldPhoneNumber!, _state.Model.PhoneNumber);
+                if(State.OldPhoneNumber != State.Model.PhoneNumber)
+                    await _userService.UpdateUserPhone(State.OldPhoneNumber!, State.Model.PhoneNumber);
 
                 await _client.SendMessage(message.Chat, "Дані клієнта оновлено ✅.");
                 await _navigator.GoBack(message.From!, message.Chat);

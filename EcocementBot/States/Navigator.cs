@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using Telegram.Bot.Types;
 
@@ -7,8 +6,10 @@ namespace EcocementBot.States;
 
 public class Navigator
 {
+    public IReadOnlyDictionary<long, Stack<IScreen>> Screens => _screens;
+
     private readonly IServiceProvider _services;
-    private readonly Dictionary<long, Stack<IScreen>> _screenStacks = new();
+    private readonly Dictionary<long, Stack<IScreen>> _screens = new();
 
     public Navigator(IServiceProvider services)
     {
@@ -23,10 +24,10 @@ public class Navigator
 
     public Task Open(IScreen screen, User user, Chat chat)
     {
-        if (!_screenStacks.TryGetValue(user.Id, out Stack<IScreen>? stack))
+        if (!_screens.TryGetValue(user.Id, out Stack<IScreen>? stack))
         {
             stack = new Stack<IScreen>();
-            _screenStacks[user.Id] = stack;
+            _screens[user.Id] = stack;
         }
         stack.Push(screen);
         return screen.EnterAsync(user, chat);
@@ -34,7 +35,7 @@ public class Navigator
 
     public bool TryGetScreen(User user, [NotNullWhen(returnValue: true)] out IScreen? screen)
     {
-        if (_screenStacks.TryGetValue(user.Id, out var stack))
+        if (_screens.TryGetValue(user.Id, out var stack))
         {
             screen = stack.Peek();
             return true;
@@ -46,14 +47,14 @@ public class Navigator
 
     public IScreen? GetScreen(User user)
     {
-        if(_screenStacks.TryGetValue(user.Id, out var stack))
+        if(_screens.TryGetValue(user.Id, out var stack))
             return stack.Peek();
         return null;
     }
 
     public Task GoBack(User user, Chat chat)
     {
-        _screenStacks[user.Id].Pop();
-        return _screenStacks[user.Id].Peek().EnterAsync(user, chat);
+        _screens[user.Id].Pop();
+        return _screens[user.Id].Peek().EnterAsync(user, chat);
     }
 }

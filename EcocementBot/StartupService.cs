@@ -18,6 +18,7 @@ public class StartupService : BackgroundService
     private readonly Navigator _navigator;
     private readonly UserService _userService;
     private readonly SessionService _sessionService;
+    private readonly PersistanceService _persistanceService;
     private readonly ILogger<StartupService> _logger;
 
     public StartupService(TelegramBotClient client,
@@ -25,7 +26,8 @@ public class StartupService : BackgroundService
         Navigator navigator,
         UserService userService,
         SessionService sessionService,
-        ILogger<StartupService> logger)
+        ILogger<StartupService> logger,
+        PersistanceService persistanceService)
     {
         _client = client;
         _adminMenu = adminMenu;
@@ -33,6 +35,7 @@ public class StartupService : BackgroundService
         _userService = userService;
         _sessionService = sessionService;
         _logger = logger;
+        _persistanceService = persistanceService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -56,6 +59,8 @@ public class StartupService : BackgroundService
             {
                 _logger.LogError(exception, "An exception was thrown:");
             }
+
+            await _persistanceService.Save();
             return;
         }
 
