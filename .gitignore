@@ -364,3 +364,5 @@ FodyWeavers.xsd
 /EcocementBot/Application.db
 /EcocementBot/Application.db-shm
 /EcocementBot/Application.db-wal
+/EcocementBot/state.json
+/EcocementBot/state.json

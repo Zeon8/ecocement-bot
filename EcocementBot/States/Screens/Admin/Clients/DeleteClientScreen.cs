@@ -34,7 +34,7 @@ public class DeleteClientScreen : IScreen
             {
                 Keyboard =
                 [
-                    ..phoneNumbers.Select(p => new[]{ new KeyboardButton(p) }).ToArray(),
+                    ..phoneNumbers.Select(p => new[]{ new KeyboardButton('+'+p) }).ToArray(),
                     [CommonButtons.CancelButton],
                 ]
             });
@@ -51,7 +51,7 @@ public class DeleteClientScreen : IScreen
             return;
         }
 
-        string phoneNumber = message.Text;
+        string phoneNumber = message.Text[1..]; // Skip +
         try
         {
             await _clientService.DeleteClient(phoneNumber);

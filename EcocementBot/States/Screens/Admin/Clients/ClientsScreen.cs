@@ -29,11 +29,9 @@ public class ClientsScreen : IScreen
         {
             Keyboard =
                 [
-                    [
-                        new KeyboardButton("➕ Створити"),
-                        new KeyboardButton("✍️ Редагувати"),
-                        new KeyboardButton("🗑 Видалити"),
-                    ],
+                    [new KeyboardButton("➕ Створити")],
+                    [new KeyboardButton("✍️ Редагувати")],
+                    [new KeyboardButton("🗑 Видалити")],
                     [CommonButtons.BackButton],
                 ]
         });

@@ -11,18 +11,18 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using static EcocementBot.Models.OrderCarTime;
 
-namespace EcocementBot.States.Screens.Clients;
+namespace EcocementBot.States.Screens;
 
 public record struct Step
 {
-    public required Func<Chat, User, Task> Ask { get; init; }
+    public required Func<Chat, TelegramUser, Task> Ask { get; init; }
 
     public required Func<Message, Task> Handle { get; init; }
 }
 
 public class OrderScreen : IScreen
 {
-    public OrderState State { get; } = new();
+    public OrderState State { get; set; } = new();
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
@@ -30,6 +30,7 @@ public class OrderScreen : IScreen
     private readonly ClientService _clientService;
     private readonly SessionService _sessionService;
     private readonly OrderSender _sender;
+    private readonly CultureInfo _culture = new CultureInfo("uk-UA");
 
     private readonly Dictionary<OrderStateType, Step> _steps;
 
@@ -254,7 +255,7 @@ public class OrderScreen : IScreen
 
                     if (timeOfDay != TimeOfDay.Custom)
                     {
-                        State.OrderCarTime = new OrderCarTime.General(new CarDeliveryTime(timeOfDay));
+                        State.OrderCarTime = new General(new CarDeliveryTime(timeOfDay));
                         SetStateOrEdit(OrderStateType.SelectPaymentType);
                         return;
                     }
@@ -273,7 +274,7 @@ public class OrderScreen : IScreen
                         return;
                     }
 
-                    State.OrderCarTime = new OrderCarTime.General(new CarDeliveryTime(State.CurrentTimeOfDay, time));
+                    State.OrderCarTime = new General(new CarDeliveryTime(State.CurrentTimeOfDay, time));
                     SetStateOrEdit(OrderStateType.SelectPaymentType);
                 }
             },
@@ -368,18 +369,18 @@ public class OrderScreen : IScreen
                     var client = await _clientService.GetClient(phoneNumber);
 
                     StringBuilder builder = new();
-                    builder.AppendLine($"Дата: {State.Date}");
+                    builder.AppendLine($"Дата: {State.Date.ToString(_culture)}");
                     builder.AppendLine($"Замовник: {client!.Name}");
                     builder.AppendLine($"Адреса: {client.Address}");
                     string stringPaymentType = s_paymentTypeValues.First(p => p.Value == State.PaymentType).Key;
                     builder.AppendLine($"Форма оплати: {stringPaymentType}");
                     builder.AppendLine($"Марка цементу: {State.Mark}"); ;
-                    if (State.OrderCarTime is OrderCarTime.General general)
+                    if (State.OrderCarTime is General general)
                     {
                         builder.AppendLine($"Кількість автівок: {State.CarsCount}");
                         builder.AppendLine($"Загальний час автівок: {ToTimeOnly(general.Time)}");
                     }
-                    else if (State.OrderCarTime is OrderCarTime.Individual individual)
+                    else if (State.OrderCarTime is Individual individual)
                     {
                         builder.AppendLine();
                         for (int i = 0; i < individual.CarTimes.Count; i++)
@@ -488,7 +489,7 @@ public class OrderScreen : IScreen
             State.Type = orderStateType;
     }
 
-    private async Task AskEnterTime(Chat chat, User user)
+    private async Task AskEnterTime(Chat chat, TelegramUser user)
     {
         await _client.SendMessage(chat, "❗ Ми намагатимемося доставити цемент у вказаний вами час, " +
                             "однак точна доставка не гарантується, оскільки вона залежить від кількості замовлень на цей період " +
@@ -536,7 +537,7 @@ public class OrderScreen : IScreen
 
         public int CurrentCarIndex { get; set; }
 
-        public Dictionary<string, int> CarSelection { get; } = [];
+        public Dictionary<string, int> CarSelection { get; set; } = [];
 
         public PaymentType PaymentType { get; set; }
 

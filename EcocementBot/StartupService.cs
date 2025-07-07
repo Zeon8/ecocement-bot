@@ -3,34 +3,31 @@ using Telegram.Bot;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types;
 using EcocementBot.States;
-using EcocementBot.States.Screens.Auth;
 using EcocementBot.Data.Entities;
 using EcocementBot.States.Screens.Admin;
-using EcocementBot.States.Screens.Clients;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using EcocementBot.States.Screens;
 
 namespace EcocementBot;
 
 public class StartupService : BackgroundService
 {
     private readonly TelegramBotClient _client;
-    private readonly AdminService _adminMenu;
     private readonly Navigator _navigator;
     private readonly UserService _userService;
     private readonly SessionService _sessionService;
-    private readonly PersistanceService _persistanceService;
+    private readonly StatePersistanceService _persistanceService;
     private readonly ILogger<StartupService> _logger;
 
     public StartupService(TelegramBotClient client,
-        AdminService adminMenu,
         Navigator navigator,
         UserService userService,
         SessionService sessionService,
         ILogger<StartupService> logger,
-        PersistanceService persistanceService)
+        StatePersistanceService persistanceService)
     {
         _client = client;
-        _adminMenu = adminMenu;
         _navigator = navigator;
         _userService = userService;
         _sessionService = sessionService;
@@ -40,6 +37,8 @@ public class StartupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await _persistanceService.Load();
+
         TelegramUser user = await _client.GetMe(stoppingToken);
         _client.OnMessage += (message, _) => Handle(message);
     }
@@ -49,7 +48,9 @@ public class StartupService : BackgroundService
         if (message.Chat.Type != ChatType.Private)
             return;
 
-        if (message.Text != "/start" && _navigator.TryGetScreen(message.From!, out IScreen? screen))
+        if (message.Text == "/start")
+            _navigator.Clear(message.From!);
+        else if (_navigator.TryGetScreen(message.From!, out IScreen? screen))
         {
             try
             {
@@ -79,5 +80,6 @@ public class StartupService : BackgroundService
 
         _sessionService.Authorize(message.From.Id, user.PhoneNumber);
         await _navigator.Open<OrderScreen>(message.From, message.Chat);
+        await _persistanceService.Save();
     }
 }

@@ -11,7 +11,7 @@ namespace EcocementBot.States.Screens.Admin.Clients;
 
 public partial class CreateClientScreen : IScreen
 {
-    public FormState State { get; } = new();
+    public FormState State { get; set; } = new();
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
@@ -58,6 +58,13 @@ public partial class CreateClientScreen : IScreen
                     }
 
                     State.Model.PhoneNumber = message.Text[1..]; // Skip + before 380
+                }
+
+                var client = await _clientService.GetClient(State.Model.PhoneNumber);
+                if(client is not null)
+                {
+                    await _client.SendMessage(message.Chat, $"✖️ Цей номер вже використаний клієнтом {client.Name}.");
+                    break;
                 }
 
                 await _client.SendMessage(message.Chat, "Введіть назву підприємства:");

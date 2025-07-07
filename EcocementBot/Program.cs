@@ -2,11 +2,10 @@ using EcocementBot;
 using EcocementBot.Data;
 using EcocementBot.Services;
 using EcocementBot.States;
+using EcocementBot.States.Screens;
 using EcocementBot.States.Screens.Admin;
 using EcocementBot.States.Screens.Admin.Clients;
 using EcocementBot.States.Screens.Admin.Marks;
-using EcocementBot.States.Screens.Auth;
-using EcocementBot.States.Screens.Clients;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -26,7 +25,9 @@ builder.Services.AddSingleton(new TelegramBotClient(botToken));
 builder.Services.AddSingleton<Navigator>();
 builder.Services.AddSingleton<SessionService>();
 builder.Services.AddSingleton<OrderSender>();
-builder.Services.AddSingleton<PersistanceService>();
+
+builder.Services.AddSingleton<StatePersistanceService>();
+builder.Services.AddSingleton<DIJsonTypeInfoResolver>();
 
 builder.Services.AddTransient<AdminService>();
 builder.Services.AddTransient<AdminScreen>();

@@ -12,7 +12,7 @@ namespace EcocementBot.States.Screens.Admin.Clients;
 
 public class EditClientScreen : IScreen
 {
-    public FormState State { get; } = new();
+    public FormState State { get; set; } = new();
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
@@ -39,7 +39,7 @@ public class EditClientScreen : IScreen
             {
                 Keyboard = 
                 [
-                    ..phoneNumbers.Select(p => new[]{ new KeyboardButton(p) }).ToArray(),
+                    ..phoneNumbers.Select(p => new[]{ new KeyboardButton('+'+p) }).ToArray(),
                     [CommonButtons.CancelButton],
                 ]
             });
@@ -59,7 +59,7 @@ public class EditClientScreen : IScreen
         switch (State.Type)
         {
             case StateTypes.FindClient:
-                string? phoneNumber = message.Text;
+                string? phoneNumber = message.Text[1..]; // Skip +
                 var client = await _clientService.GetClient(phoneNumber);
                 if (client is null)
                 {
@@ -94,6 +94,13 @@ public class EditClientScreen : IScreen
                     }
 
                     State.Model.PhoneNumber = message.Text;
+                }
+
+                var existingClient = await _clientService.GetClient(State.Model.PhoneNumber);
+                if (existingClient is not null)
+                {
+                    await _client.SendMessage(message.Chat, $"✖️ Цей номер вже використаний клієнтом {existingClient.Name}.");
+                    break;
                 }
 
                 await _client.SendMessage(message.Chat,

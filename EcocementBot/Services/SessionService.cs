@@ -4,12 +4,12 @@ namespace EcocementBot.Services;
 
 public class SessionService
 {
-    private readonly ConcurrentDictionary<long, string> _sessions = new();
+    public Dictionary<long, string> Sessions { get; set; } = new();
 
     public void Authorize(long userId, string phoneNumber) 
-        => _sessions[userId] = phoneNumber;
+        => Sessions[userId] = phoneNumber;
 
-    public string GetPhoneNumber(long userId) => _sessions[userId];
+    public string GetPhoneNumber(long userId) => Sessions[userId];
 
-    public bool IsAuthorized(long userId) => _sessions.ContainsKey(userId);
+    public bool IsAuthorized(long userId) => Sessions.ContainsKey(userId);
 }

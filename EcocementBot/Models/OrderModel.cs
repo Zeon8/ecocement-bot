@@ -1,16 +1,19 @@
 ﻿using EcocementBot.Data.Enums;
+using System.Text.Json.Serialization;
 
 namespace EcocementBot.Models;
 
 public record CarDeliveryTime(TimeOfDay TimeOfDay, TimeOnly? CustomTime = null);
 
+[JsonDerivedType(typeof(General), typeDiscriminator: nameof(General))]
+[JsonDerivedType(typeof(Individual), typeDiscriminator: nameof(Individual))]
 public abstract record OrderCarTime
 {
     public record General(CarDeliveryTime Time) : OrderCarTime;
 
     public record Individual : OrderCarTime
     {
-        public List<CarDeliveryTime> CarTimes { get; } = new();
+        public List<CarDeliveryTime> CarTimes { get; set; } = new();
     }
 }
 

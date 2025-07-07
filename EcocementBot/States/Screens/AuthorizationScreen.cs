@@ -1,21 +1,20 @@
 ﻿using EcocementBot.Data.Entities;
 using EcocementBot.Services;
 using EcocementBot.States.Screens.Admin;
-using EcocementBot.States.Screens.Clients;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
-namespace EcocementBot.States.Screens.Auth;
+namespace EcocementBot.States.Screens;
 
 public class AuthorizationScreen : IScreen
 {
+    public string? PhoneNumber { get; set; }
+
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
     private readonly UserService _userService;
     private readonly SessionService _sessionService;
-
-    private string? _phoneNumber;
 
     public AuthorizationScreen(TelegramBotClient client,
         Navigator navigator,
@@ -39,7 +38,7 @@ public class AuthorizationScreen : IScreen
 
     public async Task HandleInput(Message message)
     {
-        if (_phoneNumber is null)
+        if (PhoneNumber is null)
         {
             if (message.Contact is null || message.Contact.UserId != message.From!.Id)
             {
@@ -47,7 +46,7 @@ public class AuthorizationScreen : IScreen
                 return;
             }
 
-            _phoneNumber = message.Contact.PhoneNumber;
+            PhoneNumber = message.Contact.PhoneNumber;
 
             await Check(message.Chat, message.From!);
             return;
@@ -59,7 +58,7 @@ public class AuthorizationScreen : IScreen
 
     private async Task Check(Chat chat, TelegramUser telegramUser)
     {
-        var user = await _userService.GetUser(_phoneNumber!);
+        var user = await _userService.GetUser(PhoneNumber!);
 
         if (user is null)
         {
@@ -68,7 +67,7 @@ public class AuthorizationScreen : IScreen
             return;
         }
 
-        await _userService.UpdateTelegramUserId(_phoneNumber!, telegramUser.Id);
+        await _userService.UpdateTelegramUserId(PhoneNumber!, telegramUser.Id);
 
         await _client.SendMessage(chat, "✅ Авторизовано.");
 
