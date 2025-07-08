@@ -43,7 +43,6 @@ public class CreateMarkScreen : IScreen
         catch(MarkExistsException)
         {
             await _client.SendMessage(message.Chat, "✖️ Марка вже існує.");
-            await _client.SendMessage(message.Chat, "Введіть марку:", replyMarkup: CommonButtons.CancelButton);
             return;
         }
 

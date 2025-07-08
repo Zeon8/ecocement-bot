@@ -10,6 +10,8 @@ namespace EcocementBot.Services;
 
 public class OrderSender
 {
+    public long GroupId { get; set; }
+
     private readonly TelegramBotClient _client;
     private readonly ClientService _clientService;
     private readonly UserService _userService;
@@ -40,11 +42,8 @@ public class OrderSender
 
     public async Task Send(User user, OrderModel model)
     {
-        var groupId = _configuration["GroupId"]
-            ?? throw new InvalidOperationException("GroupId not found in configuration file.");
-
         string message = await FormatOrder(user, model);
-        await _client.SendMessage(new ChatId(groupId), message);
+        await _client.SendMessage(new ChatId(GroupId), message);
     }
 
     private async Task<string> FormatOrder(User user, OrderModel model)
@@ -59,9 +58,7 @@ public class OrderSender
         builder.AppendLine($"Дата: {date} ({dateOfWeek})");
 
         builder.AppendLine($"Замовник: {client!.Name}");
-        if(model.ReceiveType == OrderReceivingType.Delivery)
-            builder.AppendLine($"Адреса: {client.Address}");
-        
+        builder.AppendLine($"Адреса: {client.Address}");
 
         string carsExpression;
         if (model.CarsCount == 1)
@@ -71,7 +68,7 @@ public class OrderSender
         }
         else
         {
-            string carOwners = model.ReceiveType == OrderReceivingType.Delivery ? "НАШИХ" : "ЇХ";
+            string carOwners = model.ReceiveType == OrderReceivingType.Delivery ? "НАШИХ" : "ЇХНІХ";
             carsExpression = $"{carOwners} машин";
         }
 
@@ -99,7 +96,7 @@ public class OrderSender
     private static string ToTimeOnly(CarDeliveryTime CarDeliveryTime)
     {
         if (CarDeliveryTime.TimeOfDay == TimeOfDay.Custom)
-            return CarDeliveryTime.CustomTime!.Value.ToString(CultureInfo.CurrentUICulture)!;
+            return CarDeliveryTime.CustomTime!.Value.ToString(s_culture)!;
 
         return s_timeOfTheDayStrings[CarDeliveryTime.TimeOfDay];
     }

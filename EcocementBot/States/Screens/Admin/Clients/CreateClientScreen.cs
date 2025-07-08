@@ -61,7 +61,7 @@ public partial class CreateClientScreen : IScreen
                 }
 
                 var client = await _clientService.GetClient(State.Model.PhoneNumber);
-                if(client is not null)
+                if (client is not null)
                 {
                     await _client.SendMessage(message.Chat, $"✖️ Цей номер вже використаний клієнтом {client.Name}.");
                     break;
@@ -104,7 +104,7 @@ public partial class CreateClientScreen : IScreen
                 await _userService.CreateUser(State.Model.PhoneNumber);
                 await _client.SendMessage(message.Chat, "Клієнта додано ✅.");
                 await _navigator.GoBack(message.From!, message.Chat);
-                return;
+                break;
         }
     }
 

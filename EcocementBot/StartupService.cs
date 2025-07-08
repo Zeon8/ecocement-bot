@@ -17,19 +17,22 @@ public class StartupService : BackgroundService
     private readonly Navigator _navigator;
     private readonly UserService _userService;
     private readonly StatePersistanceService _persistanceService;
+    private readonly OrderSender _orderSender;
     private readonly ILogger<StartupService> _logger;
 
     public StartupService(TelegramBotClient client,
         Navigator navigator,
         UserService userService,
         ILogger<StartupService> logger,
-        StatePersistanceService persistanceService)
+        StatePersistanceService persistanceService,
+        OrderSender orderSender)
     {
         _client = client;
         _navigator = navigator;
         _userService = userService;
         _logger = logger;
         _persistanceService = persistanceService;
+        _orderSender = orderSender;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -42,7 +45,23 @@ public class StartupService : BackgroundService
 
     private async Task Handle(Message message, UpdateType updateType)
     {
-        if (message.Chat.Type != ChatType.Private || updateType == UpdateType.EditedMessage)
+        if (updateType == UpdateType.EditedMessage)
+            return;
+
+        if (message.Chat.Type == ChatType.Group)
+        {
+            if (message.Text != "/notify")
+                return;
+
+            var user2 = await _userService.GetUser(message.From!.Id);
+            if (user2 is null || user2.UserType != UserType.Admin)
+                return;
+
+            _orderSender.GroupId = message.Chat.Id;
+            await _client.SendMessage(message.Chat, "Групу встановлено ✅.");
+        }
+
+        if (message.Chat.Type != ChatType.Private)
             return;
 
         if (message.Text == "/start")

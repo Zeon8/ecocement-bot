@@ -59,7 +59,7 @@ public class EditClientScreen : IScreen
         switch (State.Type)
         {
             case StateTypes.FindClient:
-                string? phoneNumber = message.Text[1..]; // Skip +
+                string? phoneNumber = CommonRegex.NonDigitSymbol.Replace(message.Text, string.Empty);
                 var client = await _clientService.GetClient(phoneNumber);
                 if (client is null)
                 {
@@ -69,7 +69,7 @@ public class EditClientScreen : IScreen
 
                 await _client.SendMessage(message.Chat,
                     text: "Введіть новий номер:",
-                    replyMarkup: CreateFieldKeyboard(client.PhoneNumber));
+                    replyMarkup: CreateFieldKeyboard('+'+client.PhoneNumber));
 
                 State.Model = new()
                 {
@@ -84,7 +84,7 @@ public class EditClientScreen : IScreen
                 break;
             case StateTypes.EnteringPhoneNumber:
                 if (message.Contact is Contact contact)
-                    State.Model.PhoneNumber = contact.PhoneNumber;
+                    State.Model.PhoneNumber = CommonRegex.NonDigitSymbol.Replace(contact.PhoneNumber, string.Empty);
                 else
                 {
                     if (!CommonRegex.PhoneNumber.IsMatch(message.Text))
@@ -93,14 +93,17 @@ public class EditClientScreen : IScreen
                         break;
                     }
 
-                    State.Model.PhoneNumber = message.Text;
+                    State.Model.PhoneNumber = CommonRegex.NonDigitSymbol.Replace(message.Text, string.Empty);
                 }
 
-                var existingClient = await _clientService.GetClient(State.Model.PhoneNumber);
-                if (existingClient is not null)
+                if (State.OldPhoneNumber != State.Model.PhoneNumber)
                 {
-                    await _client.SendMessage(message.Chat, $"✖️ Цей номер вже використаний клієнтом {existingClient.Name}.");
-                    break;
+                    var existingClient = await _clientService.GetClient(State.Model.PhoneNumber);
+                    if (existingClient is not null)
+                    {
+                        await _client.SendMessage(message.Chat, $"✖️ Цей номер вже використаний клієнтом {existingClient.Name}.");
+                        break;
+                    }
                 }
 
                 await _client.SendMessage(message.Chat,

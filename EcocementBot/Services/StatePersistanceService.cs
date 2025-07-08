@@ -1,17 +1,19 @@
 ﻿using EcocementBot.States;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace EcocementBot.Services;
 
 public class BotState
 {
     public Dictionary<long, List<IScreen>> Screens { get; set; } = [];
+
+    public long GroupId { get; set; }
 }
 
 public class StatePersistanceService
 {
     private readonly Navigator _navigator;
+    private readonly OrderSender _orderSender;
     
     private const string StateFileName = "state.json";
     private static readonly JsonSerializerOptions s_serializerOptions = new()
@@ -21,11 +23,13 @@ public class StatePersistanceService
     };
 
 
-    public StatePersistanceService(Navigator navigator, 
-        DIJsonTypeInfoResolver typeInfoResolver)
+    public StatePersistanceService(Navigator navigator,
+        DIJsonTypeInfoResolver typeInfoResolver,
+        OrderSender orderSender)
     {
         _navigator = navigator;
         s_serializerOptions.TypeInfoResolver = typeInfoResolver;
+        _orderSender = orderSender;
     }
 
     public async Task Save()
@@ -33,6 +37,7 @@ public class StatePersistanceService
         var state = new BotState()
         {
             Screens = _navigator.Screens.ToDictionary(i => i.Key, i => i.Value.ToList()),
+            GroupId = _orderSender.GroupId
         };
 
         using var file = File.Open(StateFileName, FileMode.Create, FileAccess.Write, FileShare.None);
@@ -54,5 +59,6 @@ public class StatePersistanceService
             i.Value.Reverse();
             return new Stack<IScreen>(i.Value); 
         });
+        _orderSender.GroupId = state!.GroupId;
     }
 }

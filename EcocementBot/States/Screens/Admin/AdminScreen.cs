@@ -26,7 +26,7 @@ public class AdminScreen : IScreen
                 Keyboard =
                 [
                    [new KeyboardButton("💼 Клієнти")],
-                   [new KeyboardButton("🔖 Марки")]
+                   [new KeyboardButton("🔖 Марки")],
                 ]
             });
     }
