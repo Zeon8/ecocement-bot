@@ -15,14 +15,17 @@ public partial class AuthorizationScreen : IScreen
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
     private readonly UserService _userService;
+    private readonly IConfiguration _configuration;
 
     public AuthorizationScreen(TelegramBotClient client,
         Navigator navigator,
-        UserService userService)
+        UserService userService,
+        IConfiguration configuration)
     {
         _client = client;
         _navigator = navigator;
         _userService = userService;
+        _configuration = configuration;
     }
 
     public Task EnterAsync(TelegramUser user, Chat chat)
@@ -60,7 +63,10 @@ public partial class AuthorizationScreen : IScreen
 
         if (user is null)
         {
-            await _client.SendMessage(chat, "Ви не авторизовані. Для реєстрації зв'яжіться з менеджером: [контакт]",
+            var contact = _configuration["ManagerContact"]
+                ?? throw new InvalidOperationException("ManagerContact not found in configuration."); 
+
+            await _client.SendMessage(chat, $"Ви не авторизовані. Для реєстрації зв'яжіться з менеджером: {contact}",
                 replyMarkup: new KeyboardButton("🔁 Повторити вхід"));
             return;
         }
