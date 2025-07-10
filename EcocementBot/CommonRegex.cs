@@ -6,7 +6,7 @@ public partial class CommonRegex
 {
     public static Regex PhoneNumber => GetPhoneNumber();
 
-    public static Regex NonDigitSymbol => GetNonDigitSymbol();
+    public static Regex NonDigitSymbols => GetNonDigitSymbol();
 
     [GeneratedRegex("^\\+380\\d{9}$")]
     private static partial Regex GetPhoneNumber();

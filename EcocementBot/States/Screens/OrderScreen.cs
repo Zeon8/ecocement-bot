@@ -42,9 +42,19 @@ public class OrderScreen : IScreen
         Keyboard =
         [
             ["🌅 Ранок", "🌇 Обід", "🌃 Вечір"],
+            ["🌤 Протягом дня"],
             ["🕘 Власний час"],
             [CommonButtons.PreviousStepButton]
         ]
+    };
+
+    private static readonly Dictionary<string, TimeOfDay> s_timeOfTheDayValues = new()
+    {
+        ["🌅 Ранок"] = TimeOfDay.Morning,
+        ["🌇 Обід"] = TimeOfDay.Day,
+        ["🌃 Вечір"] = TimeOfDay.Evening,
+        ["🌤 Протягом дня"] = TimeOfDay.Anytime,
+        ["🕘 Власний час"] = TimeOfDay.Custom,
     };
 
     private static readonly ReplyKeyboardMarkup s_payTypeKeyboard = new ReplyKeyboardMarkup()
@@ -56,18 +66,10 @@ public class OrderScreen : IScreen
         ]
     };
 
-    private static readonly Dictionary<string, TimeOfDay> s_timeOfTheDayValues = new()
-    {
-        ["🌅 Ранок"] = TimeOfDay.Morning,
-        ["🌇 Обід"] = TimeOfDay.Day,
-        ["🌃 Вечір"] = TimeOfDay.Evening,
-        ["🕘 Власний час"] = TimeOfDay.Custom,
-    };
-
     private static readonly Dictionary<string, OrderPaymentType> s_paymentTypeValues = new()
     {
         ["💵 Готівка"] = OrderPaymentType.Cash,
-        ["🏦 Безготівка"] = OrderPaymentType.Card,
+        ["🏦 Безготівка"] = OrderPaymentType.Cashless,
     };
 
     private static readonly Dictionary<string, OrderStateType> s_editStates = new()
@@ -129,7 +131,8 @@ public class OrderScreen : IScreen
                         || dateTime < DateTime.Today
                         || (dateTime == DateTime.Today && DateTime.Now.Hour >= 16))
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Хибна дата.");
+                        await _client.SendMessage(message.Chat, "❌ Хибна дата.");
+                        await Ask(message);
                         return;
                     }
                     State.Date = DateOnly.FromDateTime(dateTime);
@@ -159,7 +162,8 @@ public class OrderScreen : IScreen
                         State.ReceiveType = OrderReceivingType.SelfPickup;
                     else
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
                         return;
                     }
 
@@ -179,14 +183,17 @@ public class OrderScreen : IScreen
                             Keyboard = keyboard,
                         });
                 },
-                Handle = message =>
+                Handle = async message =>
                 {
                     if (!State.Marks.Contains(message.Text!))
-                        return _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
+                    {
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
+                        return;
+                    }
 
                     State.Mark = message.Text!;
                     SetStateOrEdit(OrderStateType.EnterCarsCount);
-                    return Task.CompletedTask;
                 }
             },
             [OrderStateType.EnterCarsCount] = new Step()
@@ -196,17 +203,12 @@ public class OrderScreen : IScreen
                 {
                     if (!int.TryParse(message.Text, out int carsCount) || carsCount <= 0 || carsCount > MaxCars)
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Неправильне значення.");
+                        await _client.SendMessage(message.Chat, "❌ Неправильне значення.");
+                        await Ask(message);
                         return;
                     }
 
                     State.CarsCount = carsCount;
-
-                    if (carsCount == 1)
-                    {
-                        State.Type = OrderStateType.SelectGeneralTime;
-                        return;
-                    }
                     State.Type = OrderStateType.SelectCarTimeType;
                 }
             },
@@ -219,7 +221,7 @@ public class OrderScreen : IScreen
                         {
                             Keyboard =
                             [
-                                ["🕒 Один час для всіх авто"],
+                                ["🌤 Доставити протягом дня"],
                                 ["⬅ Встановити індивідуально"],
                                 [CommonButtons.PreviousStepButton]
                             ],
@@ -227,8 +229,11 @@ public class OrderScreen : IScreen
                 },
                 Handle = async message =>
                 {
-                    if (message.Text == "🕒 Один час для всіх авто")
-                        State.Type = OrderStateType.SelectGeneralTime;
+                    if (message.Text == "🌤 Доставити протягом дня")
+                    {
+                        State.OrderCarTime = new WithinDay();
+                        await SelectPaymentType(message.From!);
+                    }
                     else if (message.Text == "⬅ Встановити індивідуально")
                     {
                         State.OrderCarTime = new Individual();
@@ -236,45 +241,10 @@ public class OrderScreen : IScreen
                     }
                     else
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
                         return;
                     }
-                }
-            },
-            [OrderStateType.SelectGeneralTime] = new Step()
-            {
-                Ask = (chat, _) => _client.SendMessage(chat, "Оберіть час:", replyMarkup: s_timeKeyboard),
-                Handle = async message =>
-                {
-                    if (!s_timeOfTheDayValues.TryGetValue(message.Text!, out TimeOfDay timeOfDay))
-                    {
-                        await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
-                        return;
-                    }
-
-                    if (timeOfDay != TimeOfDay.Custom)
-                    {
-                        State.OrderCarTime = new General(new CarDeliveryTime(timeOfDay));
-                        SelectPaymentType();
-                        return;
-                    }
-
-                    State.Type = OrderStateType.EnterGeneralCustomTime;
-                }
-            },
-            [OrderStateType.EnterGeneralCustomTime] = new Step()
-            {
-                Ask = AskEnterTime,
-                Handle = async message =>
-                {
-                    if (!TimeOnly.TryParse(message.Text, out TimeOnly time))
-                    {
-                        await _client.SendMessage(message.Chat, "✖️ Неправильний формат часу.");
-                        return;
-                    }
-
-                    State.OrderCarTime = new General(new CarDeliveryTime(State.CurrentTimeOfDay, time));
-                    SelectPaymentType();
                 }
             },
             [OrderStateType.SelectCar] = new Step()
@@ -317,14 +287,15 @@ public class OrderScreen : IScreen
                         var individual = (Individual)State.OrderCarTime!;
                         if (individual.CarTimes.Count == State.CarsCount)
                         {
-                            SelectPaymentType();
+                            await SelectPaymentType(message.From!);
                             return;
                         }
                     }
 
                     if (!State.CarSelection.TryGetValue(message.Text!, out int carIndex))
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
                         return;
                     }
 
@@ -337,20 +308,21 @@ public class OrderScreen : IScreen
                 Ask = (chat, _) => _client.SendMessage(chat, "Оберіть час:", replyMarkup: s_timeKeyboard),
                 Handle = async message =>
                 {
-                    if (!s_timeOfTheDayValues.TryGetValue(message.Text!, out TimeOfDay timeOfDay2))
+                    if (!s_timeOfTheDayValues.TryGetValue(message.Text!, out TimeOfDay timeOfDay))
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
                         return;
                     }
 
                     var individual = (Individual)State.OrderCarTime!;
-                    if (timeOfDay2 == TimeOfDay.Custom)
+                    if (timeOfDay == TimeOfDay.Custom)
                     {
                         State.Type = OrderStateType.EnterIndividualCustomTime;
                         return;
                     }
 
-                    SetCarTime(individual, new CarDeliveryTime(timeOfDay2));
+                    SetCarTime(individual, new CarDeliveryTime(timeOfDay));
                     State.Type = OrderStateType.SelectCar;
                 }
             },
@@ -359,14 +331,15 @@ public class OrderScreen : IScreen
                 Ask = AskEnterTime,
                 Handle = async message =>
                 {
-                    if (!TimeOnly.TryParse(message.Text, out TimeOnly time2))
+                    if (!TimeOnly.TryParse(message.Text, out TimeOnly time))
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Неправильний формат часу.");
+                        await _client.SendMessage(message.Chat, "❌ Неправильний формат часу.");
+                        await Ask(message);
                         return;
                     }
 
                     var individual = (Individual)State.OrderCarTime!;
-                    SetCarTime(individual, new CarDeliveryTime(TimeOfDay.Custom, time2));
+                    SetCarTime(individual, new CarDeliveryTime(TimeOfDay.Custom, time));
                     State.Type = OrderStateType.SelectCar;
                 }
             },
@@ -380,7 +353,8 @@ public class OrderScreen : IScreen
 
                     if (!s_paymentTypeValues.TryGetValue(message.Text, out OrderPaymentType paymentType))
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Неправильний вибір.");
+                        await _client.SendMessage(message.Chat, "❌ Неправильний вибір.");
+                        await Ask(message);
                         return;
                     }
                     State.PaymentType = paymentType;
@@ -398,15 +372,19 @@ public class OrderScreen : IScreen
                     builder.AppendLine($"Дата: {State.Date.ToString(s_culture)}");
                     builder.AppendLine($"Замовник: {client!.Name}");
                     builder.AppendLine($"Адреса: {client.Address}");
-                    string stringPaymentType = s_paymentTypeValues.First(p => p.Value == State.PaymentType).Key;
+
                     var receiveType = State.ReceiveType == OrderReceivingType.Delivery ? "🚚 Доставка" : "🏗 Самовивіз";
                     builder.AppendLine($"Спосіб отримання: {receiveType}");
+
+                    string stringPaymentType = s_paymentTypeValues.First(p => p.Value == State.PaymentType).Key;
                     builder.AppendLine($"Форма оплати: {stringPaymentType}");
-                    builder.AppendLine($"Марка цементу: {State.Mark}"); ;
-                    if (State.OrderCarTime is General general)
+
+                    builder.AppendLine($"Марка цементу: {State.Mark}");
+
+                    if (State.OrderCarTime is WithinDay)
                     {
+                        builder.AppendLine($"Авто: доставимо протягом дня");
                         builder.AppendLine($"Кількість автівок: {State.CarsCount}");
-                        builder.AppendLine($"Загальний час автівок: {ToTimeOnly(general.Time)}");
                     }
                     else if (State.OrderCarTime is Individual individual)
                     {
@@ -417,7 +395,6 @@ public class OrderScreen : IScreen
                             builder.AppendLine($"Авто №{i + 1}: {ToTimeOnly(CarDeliveryTime)}");
                         }
                     }
-
 
                     await _client.SendMessage(chat, builder.ToString(), replyMarkup: new ReplyKeyboardMarkup
                     {
@@ -431,43 +408,52 @@ public class OrderScreen : IScreen
                 },
                 Handle = async message =>
                 {
-                    if (message.Text == "✅ Готово")
+                    switch(message.Text)
                     {
-                        await _sender.Send(message.From!, new OrderModel
-                        {
-                            Date = State.Date,
-                            CarsCount = State.CarsCount,
-                            Mark = State.Mark!,
-                            CarTime = State.OrderCarTime!,
-                            PaymentType = State.PaymentType,
-                            ReceiveType = State.ReceiveType,
-                        });
-                        State.Type = OrderStateType.Finish;
+                        case "✅ Готово":
+                            await _sender.Send(message.From!, new OrderModel
+                            {
+                                Date = State.Date,
+                                Mark = State.Mark!,
+                                CarsCount = State.CarsCount,
+                                CarTime = State.OrderCarTime!,
+                                PaymentType = State.PaymentType,
+                                ReceiveType = State.ReceiveType,
+                            });
+                            State.Type = OrderStateType.Finish;
+                            break;
+                        case "✍️ Редагувати":
+                            State.IsEditMode = true;
+                            State.Type = OrderStateType.SelectEdit;
+                            break;
+                        case "🔄 Оформити замовлення наново":
+                            State.Type = OrderStateType.SelectDate;
+                            break;
+                        default:
+                            await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                            await Ask(message);
+                            break;
                     }
-                    else if (message.Text == "✍️ Редагувати")
-                    {
-                        State.IsEditMode = true;
-                        State.Type = OrderStateType.SelectEdit;
-                    }
-                    else if (message.Text == "🔄 Оформити замовлення наново")
-                        State.Type = OrderStateType.SelectDate;
-                    else
-                        await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
                 }
             },
             [OrderStateType.SelectEdit] = new Step()
             {
-                Ask = (chat, user) => _client.SendMessage(chat, "Оберіть зміну:", replyMarkup: new ReplyKeyboardMarkup
+                Ask = async (chat, user) =>
                 {
-                    Keyboard = s_editStates.Keys
+                    await UpdatePaymentType(user);
+                    await _client.SendMessage(chat, "Оберіть зміну:", replyMarkup: new ReplyKeyboardMarkup
+                    {
+                        Keyboard = s_editStates.Keys
                         .Where(k => k != "💸 Змінити форму оплати" || State.AllowSelectPaymentType)
                         .Select(k => new[] { new KeyboardButton(k) }).ToArray()
-                }),
+                    });
+                },
                 Handle = async message =>
                 {
                     if (!s_editStates.TryGetValue(message.Text!, out OrderStateType stateType))
                     {
-                        await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
                         return;
                     }
 
@@ -486,13 +472,16 @@ public class OrderScreen : IScreen
                         ["➕ Нове замовлення"]
                     ]
                 }),
-                Handle = message =>
+                Handle = async message =>
                 {
                     if (message.Text != "➕ Нове замовлення")
-                        return _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
+                    {
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
+                        return;
+                    }
 
                     State.Type = OrderStateType.SelectDate;
-                    return Task.CompletedTask;
                 }
             }
         };
@@ -505,8 +494,6 @@ public class OrderScreen : IScreen
             State.Type = State.Type switch
             {
                 OrderStateType.SelectCarTimeType => OrderStateType.EnterCarsCount,
-                OrderStateType.SelectGeneralTime => OrderStateType.SelectCarTimeType,
-                OrderStateType.EnterGeneralCustomTime => OrderStateType.SelectCarTimeType,
                 OrderStateType.SelectCar => OrderStateType.SelectCarTimeType,
                 OrderStateType.SelectIndividualTime => OrderStateType.SelectCar,
                 OrderStateType.EnterIndividualCustomTime => OrderStateType.EnterIndividualCustomTime,
@@ -529,12 +516,6 @@ public class OrderScreen : IScreen
             case OrderStateType.SelectCarTimeType:
                 State.Type = OrderStateType.EnterCarsCount;
                 break;
-            case OrderStateType.SelectGeneralTime:
-                State.Type = OrderStateType.SelectCarTimeType;
-                break;
-            case OrderStateType.EnterGeneralCustomTime:
-                State.Type = OrderStateType.SelectCarTimeType;
-                break;
             case OrderStateType.SelectCar:
                 State.Type = OrderStateType.SelectCarTimeType;
                 break;
@@ -545,10 +526,11 @@ public class OrderScreen : IScreen
                 State.Type = OrderStateType.EnterIndividualCustomTime;
                 break;
             case OrderStateType.SelectPaymentType:
-                if (State.OrderCarTime is Individual)
-                    State.Type = OrderStateType.SelectCar;
-                else if (State.OrderCarTime is General)
-                    State.Type = OrderStateType.SelectGeneralTime;
+                State.Type = State.OrderCarTime switch
+                {
+                    WithinDay => OrderStateType.SelectCarTimeType,
+                    Individual => OrderStateType.SelectCar,
+                };
                 break;
         }
     }
@@ -562,26 +544,27 @@ public class OrderScreen : IScreen
             individual.CarTimes[State.CurrentCarIndex] = carTime;
     }
 
-    private void SelectPaymentType()
+    private async Task SelectPaymentType(User user)
     {
+        await UpdatePaymentType(user);
+
         if (State.AllowSelectPaymentType)
             SetStateOrEdit(OrderStateType.SelectPaymentType);
         else
             SetStateOrEdit(OrderStateType.SelectFinalAction);
     }
 
-    public async Task EnterAsync(TelegramUser telegramUser, Chat chat)
+    private async Task UpdatePaymentType(User user)
     {
-        var phone = await _userService.GetPhoneNumber(telegramUser.Id);
+        var phone = await _userService.GetPhoneNumber(user.Id);
         var client = await _clientService.GetClient(phone!);
 
-        if (client!.PaymentType == ClientPaymentType.Both)
-            State.AllowSelectPaymentType = true;
-        else
-            State.PaymentType = (OrderPaymentType)client!.PaymentType;
-
-        await _steps[State.Type].Ask(chat, telegramUser);
+        State.AllowSelectPaymentType = client.PaymentType == ClientPaymentType.Both;
+        if(!State.AllowSelectPaymentType)
+            State.PaymentType = (OrderPaymentType)client.PaymentType;
     }
+
+    public Task EnterAsync(TelegramUser telegramUser, Chat chat) => Ask(chat, telegramUser);
 
     public async Task HandleInput(Message message)
     {
@@ -605,7 +588,8 @@ public class OrderScreen : IScreen
             await Ask(message);
     }
 
-    private async Task Ask(Message message) => await _steps[State.Type].Ask(message.Chat, message.From!);
+    private Task Ask(Message message) => Ask(message.Chat, message.From!);
+    private Task Ask(Chat chat, User user) => _steps[State.Type].Ask(chat, user);
 
     private void SetStateOrEdit(OrderStateType orderStateType)
     {
@@ -653,11 +637,11 @@ public class OrderScreen : IScreen
 
         public OrderPaymentType PaymentType { get; set; }
 
-        public bool AllowSelectPaymentType;
-
         public bool IsEditMode { get; set; }
 
         public List<string> Marks { get; set; } = [];
+
+        public bool AllowSelectPaymentType { get; set; }
     }
 
     public enum OrderStateType
@@ -667,8 +651,6 @@ public class OrderScreen : IScreen
         SelectCementMark,
         EnterCarsCount,
         SelectCarTimeType,
-        SelectGeneralTime,
-        EnterGeneralCustomTime,
         SelectCar,
         SelectIndividualTime,
         EnterIndividualCustomTime,

@@ -3,6 +3,6 @@
 public enum ClientPaymentType
 {
     Cash,
-    Card,
+    Cashless,
     Both
 }

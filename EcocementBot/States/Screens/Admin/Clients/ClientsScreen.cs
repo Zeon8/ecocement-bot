@@ -47,7 +47,13 @@ public class ClientsScreen : IScreen
             "➕ Створити" => _navigator.Open<CreateClientScreen>(message.From!, message.Chat),
             "✍️ Редагувати" => _navigator.Open<EditClientScreen>(message.From!, message.Chat),
             "🗑 Видалити" => _navigator.Open<DeleteClientScreen>(message.From!, message.Chat),
-            _ => _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору."),
+            _ => HandleWrongSelect(message),
         };
+    }
+
+    private async Task HandleWrongSelect(Message message)
+    {
+        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+        await EnterAsync(message.From!, message.Chat);
     }
 }

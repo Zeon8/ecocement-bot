@@ -17,6 +17,7 @@ public partial class CreateClientScreen : IScreen
     private readonly Navigator _navigator;
     private readonly ClientService _clientService;
     private readonly UserService _userService;
+    private readonly Dictionary<StateType, Step> _steps;
 
     public CreateClientScreen(TelegramBotClient client, Navigator navigator, ClientService clientService, UserService userService)
     {
@@ -24,14 +25,97 @@ public partial class CreateClientScreen : IScreen
         _navigator = navigator;
         _clientService = clientService;
         _userService = userService;
+
+        _steps = new()
+        {
+            [StateType.EnteringPhoneNumber] = new Step
+            {
+                Ask = (chat, _) => _client.SendMessage(chat, "*➕Створення клієнта*\n\nВведіть номер (у форматі +380XXXXXXXXX):",
+                    parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown,
+                    replyMarkup: CommonButtons.CancelButton),
+                Handle = async message =>
+                {
+                    if (message.Contact is not null)
+                        State.Model.PhoneNumber = message.Contact.PhoneNumber;
+                    else
+                    {
+                        if (!CommonRegex.PhoneNumber.IsMatch(message.Text!))
+                        {
+                            await _client.SendMessage(message.Chat, "❌ Неправильний формат.");
+                            await Ask(message);
+                            return;
+                        }
+
+                        State.Model.PhoneNumber = CommonRegex.NonDigitSymbols.Replace(message.Text!, string.Empty);
+                    }
+
+                    var client = await _clientService.GetClient(State.Model.PhoneNumber);
+                    if (client is not null)
+                    {
+                        await _client.SendMessage(message.Chat, $"❌ Цей номер вже використаний клієнтом {client.Name}.");
+                        await Ask(message);
+                        return;
+                    }
+
+                    State.Type = StateType.EnteringName;
+                }
+            },
+            [StateType.EnteringName] = new Step
+            {
+                Ask = (chat, _) => _client.SendMessage(chat, "Введіть назву підприємства:", replyMarkup: CommonButtons.CancelButton),
+                Handle = message =>
+                {
+                    State.Model.Name = message.Text!;
+                    State.Type = StateType.EnteringAddress;
+                    return Task.CompletedTask;
+                }
+            },
+            [StateType.EnteringAddress] = new Step
+            {
+                Ask = (chat, _) => _client.SendMessage(chat, "Введіть адресу підприємства:", replyMarkup: CommonButtons.CancelButton),
+                Handle = message =>
+                {
+                    State.Model.Address = message.Text!;
+                    State.Type = StateType.EnteringPaymentType;
+                    return Task.CompletedTask;
+                }
+            },
+            [StateType.EnteringPaymentType] = new Step
+            {
+                Ask = (chat, _) => _client.SendMessage(chat, "Виберіть спосіб оплати:", replyMarkup: new ReplyKeyboardMarkup
+                {
+                    Keyboard =
+                       [
+                           [new KeyboardButton("💵 Готівка"), new KeyboardButton("🏦 Безготівка")],
+                           [new KeyboardButton("💵 Готівка або 🏦 Безготівка")],
+                           [CommonButtons.CancelButton],
+                       ]
+                }),
+                Handle = async message =>
+                {
+                    if (message.Text == "💵 Готівка")
+                        State.Model.PaymentType = ClientPaymentType.Cash;
+                    else if (message.Text == "🏦 Безготівка")
+                        State.Model.PaymentType = ClientPaymentType.Cashless;
+                    else if (message.Text == "💵 Готівка або 🏦 Безготівка")
+                        State.Model.PaymentType = ClientPaymentType.Both;
+                    else
+                    {
+                        await _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору.");
+                        await Ask(message);
+                        return;
+                    }
+                    await _clientService.CreateClient(State.Model);
+                    await _userService.CreateUser(State.Model.PhoneNumber);
+                    await _client.SendMessage(message.Chat, "Клієнта додано ✅.");
+                    await _navigator.GoBack(message.From!, message.Chat);
+                }
+
+            }
+        };
     }
 
-    public Task EnterAsync(User user, Chat chat)
-    {
-        return _client.SendMessage(chat, "*➕Створення клієнта*\n\nВведіть номер (у форматі +380XXXXXXXXX):",
-            parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown,
-            replyMarkup: CommonButtons.CancelButton);
-    }
+    public Task EnterAsync(User user, Chat chat) => Ask(chat, user);
 
     public async Task HandleInput(Message message)
     {
@@ -44,71 +128,18 @@ public partial class CreateClientScreen : IScreen
             return;
         }
 
-        switch (State.Type)
-        {
-            case StateTypes.EnteringPhoneNumber:
-                if (message.Contact is not null)
-                    State.Model.PhoneNumber = message.Contact.PhoneNumber;
-                else
-                {
-                    if (!CommonRegex.PhoneNumber.IsMatch(message.Text))
-                    {
-                        await _client.SendMessage(message.Chat, "✖️ Неправильний формат.");
-                        break;
-                    }
+        StateType stateTypeBefore = State.Type;
+        await _steps[stateTypeBefore].Handle(message);
 
-                    State.Model.PhoneNumber = message.Text[1..]; // Skip + before 380
-                }
-
-                var client = await _clientService.GetClient(State.Model.PhoneNumber);
-                if (client is not null)
-                {
-                    await _client.SendMessage(message.Chat, $"✖️ Цей номер вже використаний клієнтом {client.Name}.");
-                    break;
-                }
-
-                await _client.SendMessage(message.Chat, "Введіть назву підприємства:");
-                State.Type = StateTypes.EnteringName;
-                break;
-            case StateTypes.EnteringName:
-                State.Model.Name = message.Text;
-                await _client.SendMessage(message.Chat, "Введіть адресу підприємства:");
-                State.Type = StateTypes.EnteringAddress;
-                break;
-            case StateTypes.EnteringAddress:
-                State.Model.Address = message.Text;
-                await _client.SendMessage(message.Chat, "Виберіть спосіб оплати:", replyMarkup: new ReplyKeyboardMarkup
-                {
-                    Keyboard =
-                       [
-                           [new KeyboardButton("💵 Готівка"), new KeyboardButton("💳 Карта")],
-                           [new KeyboardButton("💳 Карта або 💵 Готівка")],
-                           [CommonButtons.CancelButton],
-                       ]
-                });
-                State.Type = StateTypes.EnteringPaymentType;
-                break;
-            case StateTypes.EnteringPaymentType:
-                if (message.Text == "💵 Готівка")
-                    State.Model.PaymentType = ClientPaymentType.Cash;
-                else if (message.Text == "💳 Карта")
-                    State.Model.PaymentType = ClientPaymentType.Card;
-                else if (message.Text == "💳 Карта або 💵 Готівка")
-                    State.Model.PaymentType = ClientPaymentType.Both;
-                else
-                {
-                    await _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору.");
-                    break;
-                }
-                await _clientService.CreateClient(State.Model);
-                await _userService.CreateUser(State.Model.PhoneNumber);
-                await _client.SendMessage(message.Chat, "Клієнта додано ✅.");
-                await _navigator.GoBack(message.From!, message.Chat);
-                break;
-        }
+        if (stateTypeBefore != State.Type)
+            await Ask(message);
     }
 
-    public enum StateTypes
+    private Task Ask(Message message) => Ask(message.Chat, message.From!);
+
+    private Task Ask(Chat chat, User user) => _steps[State.Type].Ask(chat, user);
+
+    public enum StateType
     {
         EnteringPhoneNumber,
         EnteringName,
@@ -118,7 +149,7 @@ public partial class CreateClientScreen : IScreen
 
     public class FormState
     {
-        public StateTypes Type { get; set; } = StateTypes.EnteringPhoneNumber;
+        public StateType Type { get; set; } = StateType.EnteringPhoneNumber;
 
         public ClientModel Model { get; set; } = new();
     }

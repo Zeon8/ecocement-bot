@@ -49,7 +49,7 @@ public class MarksScreen : IScreen
         {
             "➕ Створити" => _navigator.Open<CreateMarkScreen>(message.From!, message.Chat),
             "🗑 Видалити" => _navigator.Open<RemoveMarkScreen>(message.From!, message.Chat),
-            _ => _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору."),
+            _ => _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору."),
         };
     }
 }

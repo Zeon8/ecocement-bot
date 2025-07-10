@@ -5,11 +5,11 @@ namespace EcocementBot.Models;
 
 public record CarDeliveryTime(TimeOfDay TimeOfDay, TimeOnly? CustomTime = null);
 
-[JsonDerivedType(typeof(General), typeDiscriminator: nameof(General))]
+[JsonDerivedType(typeof(WithinDay), typeDiscriminator: nameof(WithinDay))]
 [JsonDerivedType(typeof(Individual), typeDiscriminator: nameof(Individual))]
 public abstract record OrderCarTime
 {
-    public record General(CarDeliveryTime Time) : OrderCarTime;
+    public record WithinDay : OrderCarTime;
 
     public record Individual : OrderCarTime
     {
@@ -22,7 +22,8 @@ public enum TimeOfDay
     Morning,
     Day,
     Evening,
-    Custom
+    Anytime,
+    Custom,
 }
 
 public enum OrderReceivingType
@@ -41,7 +42,7 @@ public class OrderModel
 
     public int CarsCount { get; init; }
 
-    public OrderCarTime CarTime { get; init; }
+    public required OrderCarTime CarTime { get; init; }
 
     public OrderPaymentType PaymentType { get; init; }
 }

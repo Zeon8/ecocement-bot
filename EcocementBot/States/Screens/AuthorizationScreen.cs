@@ -47,7 +47,7 @@ public partial class AuthorizationScreen : IScreen
                 return;
             }
 
-            PhoneNumber = CommonRegex.NonDigitSymbol.Replace(message.Contact.PhoneNumber, string.Empty);
+            PhoneNumber = CommonRegex.NonDigitSymbols.Replace(message.Contact.PhoneNumber, string.Empty);
 
             await Check(message.Chat, message.From!);
             return;
@@ -74,8 +74,9 @@ public partial class AuthorizationScreen : IScreen
         await _userService.UpdateTelegramUserId(PhoneNumber!, telegramUser.Id);
 
         await _client.SendMessage(chat, "✅ Авторизовано.");
+        _navigator.Clear(telegramUser);
 
-        if (user.UserType == UserType.Admin)
+        if (user.Role == UserRole.Admin)
         {
             await _navigator.Open<AdminScreen>(telegramUser, chat);
             return;

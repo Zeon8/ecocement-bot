@@ -50,8 +50,9 @@ public class RemoveMarkScreen : IScreen
         }
         catch(MarkNotExistException)
         {
-            await _client.SendMessage(message.Chat, "✖️ Марка не існує.");
-            await _client.SendMessage(message.Chat, "Введіть марку:");
+            await _client.SendMessage(message.Chat, "❌ Марка не існує.");
+            await EnterAsync(message.From!, message.Chat);
+            return;
         }
 
         await _client.SendMessage(message.Chat, "Марку видалено ✅.");

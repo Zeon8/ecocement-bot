@@ -8,6 +8,7 @@ using EcocementBot.States.Screens.Admin;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using EcocementBot.States.Screens;
+using System;
 
 namespace EcocementBot;
 
@@ -40,10 +41,15 @@ public class StartupService : BackgroundService
         await _persistanceService.Load();
 
         TelegramUser user = await _client.GetMe(stoppingToken);
-        _client.OnMessage += Handle;
+        _client.OnMessage += OnMessage;
+        _client.OnError += (exception, source) =>
+        {
+            _logger.LogError(exception, "An exception was thrown.");
+            return Task.CompletedTask;
+        };
     }
 
-    private async Task Handle(Message message, UpdateType updateType)
+    private async Task OnMessage(Message message, UpdateType updateType)
     {
         if (updateType == UpdateType.EditedMessage)
             return;
@@ -54,7 +60,7 @@ public class StartupService : BackgroundService
                 return;
 
             var user2 = await _userService.GetUser(message.From!.Id);
-            if (user2 is null || user2.UserType != UserType.Admin)
+            if (user2 is null || user2.Role != UserRole.Admin)
                 return;
 
             _orderSender.GroupId = message.Chat.Id;
@@ -64,32 +70,28 @@ public class StartupService : BackgroundService
         if (message.Chat.Type != ChatType.Private)
             return;
 
+        var user = await _userService.GetUser(message.From!.Id);
+        
         if (message.Text == "/start")
             _navigator.Clear(message.From!);
         else if (_navigator.TryGetScreen(message.From!, out IScreen? screen))
         {
-            try
+            if(user is null && screen is not AuthorizationScreen)
+                _navigator.Clear(message.From!);
+            else
             {
                 await screen.HandleInput(message);
-            }
-            catch (Exception exception)
-            {
-                _logger.LogError(exception, "An exception was thrown.");
+                await _persistanceService.Save();
                 return;
             }
-
-            await _persistanceService.Save();
-            return;
         }
 
-        var user = await _userService.GetUser(message.From!.Id);
         if (user is null)
         {
             await _navigator.Open<AuthorizationScreen>(message.From, message.Chat);
             return;
         }
-
-        if (user.UserType == UserType.Admin)
+        if (user.Role == UserRole.Admin)
         {
             await _navigator.Open<AdminScreen>(message.From, message.Chat);
             return;

@@ -51,14 +51,15 @@ public class DeleteClientScreen : IScreen
             return;
         }
 
-        string phoneNumber = message.Text[1..]; // Skip +
+        string phoneNumber = CommonRegex.NonDigitSymbols.Replace(message.Text, string.Empty);
         try
         {
             await _clientService.DeleteClient(phoneNumber);
         }
         catch(ClientNotFoundException)
         {
-            await _client.SendMessage(message.Chat, "✖️ Клієнта з таким номером не знайдено.\n\n Введіть номер клієнта:");
+            await _client.SendMessage(message.Chat, "❌ Клієнта з таким номером не знайдено.");
+            await EnterAsync(message.From!, message.Chat);
             return;
         }
 

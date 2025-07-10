@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace EcocementBot.Data.Entities;
 
-public enum UserType
+public enum UserRole
 {
     Client,
     Admin
@@ -14,7 +14,7 @@ public class User
     [Key]
     public required string PhoneNumber { get; set; }
 
-    public UserType UserType { get; set; } = UserType.Client;
+    public UserRole Role { get; set; } = UserRole.Client;
 
     public long? TelegramUserId { get; set; }
 }

@@ -21,7 +21,7 @@ public class OrderSender
 
     private static readonly Dictionary<OrderPaymentType, string> s_playmentTypeStrings = new()
     {
-        [OrderPaymentType.Card] = "Безготівкова",
+        [OrderPaymentType.Cashless] = "Безготівкова",
         [OrderPaymentType.Cash] = "Готівка",
     };
 
@@ -30,6 +30,7 @@ public class OrderSender
         [TimeOfDay.Morning] = "Ранок",
         [TimeOfDay.Day] = "Обід",
         [TimeOfDay.Evening] = "Вечір",
+        [TimeOfDay.Anytime] = "Протягом дня",
     };
 
     public OrderSender(TelegramBotClient client, ClientService clientService, IConfiguration configuration, UserService userService)
@@ -55,39 +56,36 @@ public class OrderSender
 
         var date = model.Date.ToString(s_culture);
         var dateOfWeek = s_culture.DateTimeFormat.GetDayName(model.Date.DayOfWeek);
-        builder.AppendLine($"Дата: {date} ({dateOfWeek})");
 
+        builder.AppendLine($"Дата: {date} ({dateOfWeek})");
         builder.AppendLine($"Замовник: {client!.Name}");
         builder.AppendLine($"Адреса: {client.Address}");
-
-        string carsExpression;
-        if (model.CarsCount == 1)
-        {
-            string carOwners = model.ReceiveType == OrderReceivingType.Delivery ? "НАША" : "ЇХНЯ";
-            carsExpression = $"{carOwners} машина";
-        }
-        else
-        {
-            string carOwners = model.ReceiveType == OrderReceivingType.Delivery ? "НАШИХ" : "ЇХНІХ";
-            carsExpression = $"{carOwners} машин";
-        }
-
-        builder.AppendLine($"Авто: {model.CarsCount} {carsExpression}");
-        if (model.CarTime is OrderCarTime.General general)
-            builder.AppendLine($"Загальний час автівок: {ToTimeOnly(general.Time)}");
-
         builder.AppendLine($"Цемент: {model.Mark}");
 
+        string receiveType = model.ReceiveType switch
+        {
+            OrderReceivingType.Delivery => "Доставка",
+            OrderReceivingType.SelfPickup => "Самовивіз"
+        };
+
+        builder.AppendLine($"Спосіб отримання: {receiveType}");
         builder.AppendLine($"Форма оплати: {s_playmentTypeStrings[model.PaymentType]}");
+
+        builder.AppendLine($"Кількість авто: {model.CarsCount}");
+        builder.AppendLine();
 
         if (model.CarTime is OrderCarTime.Individual individual)
         {
-            builder.AppendLine();
             for (int i = 0; i < individual.CarTimes.Count; i++)
             {
                 CarDeliveryTime CarDeliveryTime = individual.CarTimes[i];
                 builder.AppendLine($"Авто №{i + 1}: {ToTimeOnly(CarDeliveryTime)}");
             }
+        }
+        else
+        {
+            for (int i = 0; i < model.CarsCount; i++)
+                builder.AppendLine($"Авто №{i + 1}");
         }
 
         return builder.ToString();

@@ -37,7 +37,7 @@ public class AdminScreen : IScreen
         {
             "💼 Клієнти" => _navigator.Open<ClientsScreen>(message.From!, message.Chat),
             "🔖 Марки" => _navigator.Open<MarksScreen>(message.From!, message.Chat),
-            _ => _client.SendMessage(message.Chat, "✖️ Немає такого варіанту вибору."),
+            _ => _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору."),
         };
     }
 }

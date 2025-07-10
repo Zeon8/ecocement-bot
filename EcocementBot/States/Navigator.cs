@@ -34,11 +34,8 @@ public class Navigator
 
     public bool TryGetScreen(User user, [NotNullWhen(returnValue: true)] out IScreen? screen)
     {
-        if (Screens.TryGetValue(user.Id, out var stack))
-        {
-            screen = stack.Peek();
+        if (Screens.TryGetValue(user.Id, out var stack) && stack.TryPeek(out screen))
             return true;
-        }
 
         screen = null;
         return false;
