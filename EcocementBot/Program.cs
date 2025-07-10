@@ -7,8 +7,6 @@ using EcocementBot.States.Screens.Admin;
 using EcocementBot.States.Screens.Admin.Clients;
 using EcocementBot.States.Screens.Admin.Marks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Telegram.Bot;
 
 var builder = Host.CreateApplicationBuilder();
@@ -43,4 +41,11 @@ builder.Services.AddTransient<OrderScreen>();
 builder.Services.AddHostedService<StartupService>();
 
 IHost host = builder.Build();
+
+using (var scope = builder.Services.BuildServiceProvider().CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    context.Database.Migrate();
+}
+
 host.Run();
