@@ -82,10 +82,10 @@ public class OrderSender
                 builder.AppendLine($"Авто №{i + 1}: {ToTimeOnly(CarDeliveryTime)}");
             }
         }
-        else
+        else if(model.CarTime is OrderCarTime.WithinDay)
         {
             for (int i = 0; i < model.CarsCount; i++)
-                builder.AppendLine($"Авто №{i + 1}");
+                builder.AppendLine($"Авто №{i + 1}: Протягом дня");
         }
 
         return builder.ToString();
