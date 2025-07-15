@@ -49,11 +49,20 @@ public partial class CreateClientScreen : IScreen
                         State.Model.PhoneNumber = CommonRegex.NonDigitSymbols.Replace(message.Text!, string.Empty);
                     }
 
-                    var client = await _clientService.GetClient(State.Model.PhoneNumber);
-                    if (client is not null)
+                    var user = await _userService.GetUser(State.Model.PhoneNumber);
+                    if (user is not null)
                     {
-                        await _client.SendMessage(message.Chat, $"❌ Цей номер вже використаний клієнтом {client.Name}.");
-                        await Ask(message);
+                        if(user.Role == Data.Entities.UserRole.Admin)
+                        {
+                            await _client.SendMessage(message.Chat, $"❌ Це номер вже використаний адміністратором.");
+                            await Ask(message);
+                        }
+                        else
+                        {
+                            var client = await _clientService.GetClient(State.Model.PhoneNumber);
+                            await _client.SendMessage(message.Chat, $"❌ Цей номер вже використаний клієнтом {client!.Name}.");
+                            await Ask(message);
+                        }
                         return;
                     }
 

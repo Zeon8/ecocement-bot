@@ -95,11 +95,20 @@ public class EditClientScreen : IScreen
 
                     if (State.OldPhoneNumber != State.Model.PhoneNumber)
                     {
-                        var existingClient = await _clientService.GetClient(State.Model.PhoneNumber);
-                        if (existingClient is not null)
+                        var user = await _userService.GetUser(State.Model.PhoneNumber);
+                        if (user is not null)
                         {
-                            await _client.SendMessage(message.Chat, $"❌ Цей номер вже використаний клієнтом {existingClient.Name}.");
-                            await Ask(message);
+                            if (user.Role == UserRole.Admin)
+                            {
+                                await _client.SendMessage(message.Chat, $"❌ Це номер вже використаний адміністратором.");
+                                await Ask(message);
+                            }
+                            else
+                            {
+                                var client = await _clientService.GetClient(State.Model.PhoneNumber);
+                                await _client.SendMessage(message.Chat, $"❌ Цей номер вже використаний клієнтом {client!.Name}.");
+                                await Ask(message);
+                            }
                             return;
                         }
                     }
