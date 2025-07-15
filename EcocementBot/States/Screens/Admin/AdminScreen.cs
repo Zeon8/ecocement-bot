@@ -37,7 +37,13 @@ public class AdminScreen : IScreen
         {
             "💼 Клієнти" => _navigator.Open<ClientsScreen>(message.From!, message.Chat),
             "🔖 Марки" => _navigator.Open<MarksScreen>(message.From!, message.Chat),
-            _ => _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору."),
+            _ => Retry(message.Chat, message.From!),
         };
+    }
+
+    private async Task Retry(Chat chat, User user)
+    {
+        await _client.SendMessage(chat, "❌ Немає такого варіанту вибору.");
+        await EnterAsync(user, chat);
     }
 }

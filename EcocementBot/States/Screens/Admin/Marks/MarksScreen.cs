@@ -26,8 +26,7 @@ public class MarksScreen : IScreen
         var markList = string.Join(", ", marks.Select(m => $"`{m}`"));
 
         await _client.SendMessage(chat, $"🔖 *Марки*\n\n{markList}\n\nОберіть:",
-            parseMode: ParseMode.Markdown,
-            replyMarkup: new ReplyKeyboardMarkup
+            parseMode: ParseMode.Markdown, replyMarkup: new ReplyKeyboardMarkup()
             {
                 Keyboard =
                 [
@@ -49,7 +48,13 @@ public class MarksScreen : IScreen
         {
             "➕ Створити" => _navigator.Open<CreateMarkScreen>(message.From!, message.Chat),
             "🗑 Видалити" => _navigator.Open<RemoveMarkScreen>(message.From!, message.Chat),
-            _ => _client.SendMessage(message.Chat, "❌ Немає такого варіанту вибору."),
+            _ => Retry(message.Chat, message.From!),
         };
+    }
+
+    public async Task Retry(Chat chat, User user)
+    {
+        await _client.SendMessage(chat, "❌ Немає такого варіанту вибору.");
+        await EnterAsync(user, chat);
     }
 }
