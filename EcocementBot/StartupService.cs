@@ -6,6 +6,7 @@ using EcocementBot.States;
 using EcocementBot.Data.Entities;
 using EcocementBot.States.Screens.Admin;
 using EcocementBot.States.Screens;
+using System.IO;
 
 namespace EcocementBot;
 
@@ -36,7 +37,7 @@ public class StartupService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await _persistanceService.Load();
-        
+
         TelegramUser user = await _client.GetMe(stoppingToken);
         _client.OnMessage += OnMessage;
         _client.OnError += (exception, source) =>
@@ -69,12 +70,17 @@ public class StartupService : BackgroundService
 
         if (message.Chat.Type != ChatType.Private)
             return;
-        
+
         if (message.Text == "/start")
             _navigator.Clear(message.From!);
+        else if (message.Text == "/logs" && user is not null && user.Role == UserRole.Admin)
+        {
+            await SendLogs(message);
+            return;
+        }
         else if (_navigator.TryGetScreen(message.From!, out IScreen? screen))
         {
-            if(user is null && screen is not AuthorizationScreen)
+            if (user is null && screen is not AuthorizationScreen)
                 _navigator.Clear(message.From!);
             else
             {
@@ -97,6 +103,15 @@ public class StartupService : BackgroundService
 
         await _navigator.Open<OrderScreen>(message.From, message.Chat);
         await TrySave();
+    }
+
+    private async Task SendLogs(Message message)
+    {
+        using var logFileStream = new FileStream("log.txt", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        await _client.SendDocument(message.Chat, new InputFileStream(logFileStream, "log.txt"));
+
+        using var stateFileStream = new FileStream("state.json", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        await _client.SendDocument(message.Chat, new InputFileStream(stateFileStream, "state.json"));
     }
 
     private async Task TrySave()

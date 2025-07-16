@@ -7,9 +7,16 @@ using EcocementBot.States.Screens.Admin;
 using EcocementBot.States.Screens.Admin.Clients;
 using EcocementBot.States.Screens.Admin.Marks;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using Telegram.Bot;
 
+Log.Logger = new LoggerConfiguration()
+            .WriteTo.File("log.txt")
+            .CreateLogger();
+
 var builder = Host.CreateApplicationBuilder();
+
+builder.Services.AddLogging(c => c.AddSerilog());
 
 var botToken = builder.Configuration["BotToken"] ?? throw new InvalidOperationException("BotToken not found.");
 var dbFile = builder.Configuration["DbFile"] ?? throw new InvalidOperationException("DbFile not found.");
