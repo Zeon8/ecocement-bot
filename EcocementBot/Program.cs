@@ -14,10 +14,10 @@ var builder = Host.CreateApplicationBuilder();
 var botToken = builder.Configuration["BotToken"] ?? throw new InvalidOperationException("BotToken not found.");
 var dbFile = builder.Configuration["DbFile"] ?? throw new InvalidOperationException("DbFile not found.");
 
-builder.Services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite($"Data Source={dbFile}"), ServiceLifetime.Singleton);
-builder.Services.AddSingleton<UserService>();
-builder.Services.AddSingleton<ClientService>();
-builder.Services.AddSingleton<MarkService>();
+builder.Services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite($"Data Source={dbFile}"));
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<ClientService>();
+builder.Services.AddScoped<MarkService>();
 
 builder.Services.AddSingleton(new TelegramBotClient(botToken));
 builder.Services.AddSingleton<Navigator>();

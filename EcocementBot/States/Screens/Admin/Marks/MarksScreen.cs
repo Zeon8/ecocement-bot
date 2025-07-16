@@ -11,18 +11,23 @@ public class MarksScreen : IScreen
 {
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly MarkService _markService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public MarksScreen(TelegramBotClient client, Navigator navigator, MarkService markService)
+    public MarksScreen(TelegramBotClient client, 
+        Navigator navigator, 
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _markService = markService;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task EnterAsync(User user, Chat chat)
     {
-        var marks = await _markService.GetMarks();
+        await using var scope = _serviceProvider.CreateAsyncScope();
+        var markService = scope.ServiceProvider.GetRequiredService<MarkService>();
+
+        var marks = await markService.GetMarks();
         var markList = string.Join(", ", marks.Select(m => $"`{m}`"));
 
         await _client.SendMessage(chat, $"🔖 *Марки*\n\n{markList}\n\nОберіть:",

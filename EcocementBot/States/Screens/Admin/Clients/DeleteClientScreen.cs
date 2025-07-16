@@ -11,23 +11,23 @@ public class DeleteClientScreen : IScreen
 {
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly ClientService _clientService;
-    private readonly UserService _userService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public DeleteClientScreen(TelegramBotClient client, 
-        Navigator navigator, 
-        ClientService clientService, 
-        UserService userService)
+    public DeleteClientScreen(TelegramBotClient client,
+        Navigator navigator,
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _clientService = clientService;
-        _userService = userService;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task EnterAsync(User user, Chat chat)
     {
-        IEnumerable<string> phoneNumbers = await _clientService.GetPhoneNumbers();
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+
+        IEnumerable<string> phoneNumbers = await clientService.GetPhoneNumbers();
         await _client.SendMessage(chat, "*🗑 Видалення клієнта*\n\nВведіть номер клієнта:",
             parseMode: ParseMode.Markdown,
             replyMarkup: new ReplyKeyboardMarkup
@@ -51,10 +51,14 @@ public class DeleteClientScreen : IScreen
             return;
         }
 
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+        var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+
         string phoneNumber = CommonRegex.NonDigitSymbols.Replace(message.Text, string.Empty);
         try
         {
-            await _clientService.DeleteClient(phoneNumber);
+            await clientService.DeleteClient(phoneNumber);
         }
         catch(ClientNotFoundException)
         {
@@ -63,7 +67,7 @@ public class DeleteClientScreen : IScreen
             return;
         }
 
-        await _userService.DeleteUser(phoneNumber);
+        await userService.DeleteUser(phoneNumber);
 
         await _client.SendMessage(message.Chat, "Клієнта видалено ✅.");
         await _navigator.GoBack(message.From!, message.Chat);

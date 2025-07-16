@@ -1,5 +1,6 @@
 ﻿using EcocementBot.Exceptions;
 using EcocementBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -11,13 +12,15 @@ public class CreateMarkScreen : IScreen
 {
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly MarkService _markService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public CreateMarkScreen(TelegramBotClient client, Navigator navigator, MarkService markService)
+    public CreateMarkScreen(TelegramBotClient client, 
+        Navigator navigator, 
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _markService = markService;
+        _serviceProvider = serviceProvider;
     }
 
     public Task EnterAsync(User user, Chat chat)
@@ -36,9 +39,12 @@ public class CreateMarkScreen : IScreen
             return;
         }
 
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var markService = scoped.ServiceProvider.GetRequiredService<MarkService>();
+
         try
         {
-            await _markService.CreateMark(message.Text!);
+            await markService.CreateMark(message.Text!);
         }
         catch(MarkExistsException)
         {

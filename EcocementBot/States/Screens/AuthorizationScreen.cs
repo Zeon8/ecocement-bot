@@ -14,7 +14,7 @@ public partial class AuthorizationScreen : IScreen
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly UserService _userService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
 
     private static readonly KeyboardButton s_phoneNumberButton = new("☎️ Надати номер телефону")
@@ -24,13 +24,13 @@ public partial class AuthorizationScreen : IScreen
 
     public AuthorizationScreen(TelegramBotClient client,
         Navigator navigator,
-        UserService userService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _userService = userService;
         _configuration = configuration;
+        _serviceProvider = serviceProvider;
     }
 
     public Task EnterAsync(TelegramUser user, Chat chat)
@@ -62,8 +62,10 @@ public partial class AuthorizationScreen : IScreen
 
     private async Task Check(Chat chat, TelegramUser telegramUser)
     {
-        var user = await _userService.GetUser(PhoneNumber!);
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
 
+        var user = await userService.GetUser(PhoneNumber!);
         if (user is null)
         {
             var contact = _configuration["ManagerContact"]
@@ -74,7 +76,7 @@ public partial class AuthorizationScreen : IScreen
             return;
         }
 
-        await _userService.UpdateTelegramUserId(PhoneNumber!, telegramUser.Id);
+        await userService.UpdateTelegramUserId(PhoneNumber!, telegramUser.Id);
 
         await _client.SendMessage(chat, "✅ Авторизовано.");
         _navigator.Clear(telegramUser);

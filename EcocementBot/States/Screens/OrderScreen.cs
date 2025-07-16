@@ -26,9 +26,7 @@ public class OrderScreen : IScreen
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly MarkService _markService;
-    private readonly ClientService _clientService;
-    private readonly UserService _userService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly OrderSender _sender;
 
     private const int MaxCars = 200;
@@ -84,18 +82,13 @@ public class OrderScreen : IScreen
 
     public OrderScreen(TelegramBotClient client,
         Navigator navigator,
-        MarkService markService,
-        ClientService clientService,
-        UserService userService,
-        IConfiguration configuration,
-        OrderSender sender)
+        OrderSender sender,
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _markService = markService;
-        _clientService = clientService;
-        _userService = userService;
         _sender = sender;
+        _serviceProvider = serviceProvider;
 
         _steps = new()
         {
@@ -174,7 +167,10 @@ public class OrderScreen : IScreen
             {
                 Ask = async (chat, _) =>
                 {
-                    State.Marks = (await _markService.GetMarks()).ToList();
+                    await using var scoped = _serviceProvider.CreateAsyncScope();
+                    var markService = scoped.ServiceProvider.GetRequiredService<MarkService>();
+
+                    State.Marks = (await markService.GetMarks()).ToList();
                     var keyboard = KeyboardHelper.CreateKeyboard(State.Marks);
                     keyboard.Add([CommonButtons.PreviousStepButton]);
                     await _client.SendMessage(chat, "Оберіть марку цементу:",
@@ -365,8 +361,12 @@ public class OrderScreen : IScreen
             {
                 Ask = async (chat, user) =>
                 {
-                    var phoneNumber = await _userService.GetPhoneNumber(user.Id);
-                    var client = await _clientService.GetClient(phoneNumber!);
+                    await using var scoped = _serviceProvider.CreateAsyncScope();
+                    var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+                    var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+
+                    var phoneNumber = await userService.GetPhoneNumber(user.Id);
+                    var client = await clientService.GetClient(phoneNumber!);
 
                     StringBuilder builder = new();
                     builder.AppendLine($"Дата: {State.Date.ToString(s_culture)}");
@@ -408,7 +408,7 @@ public class OrderScreen : IScreen
                 },
                 Handle = async message =>
                 {
-                    switch(message.Text)
+                    switch (message.Text)
                     {
                         case "✅ Готово":
                             await _sender.Send(message.From!, new OrderModel
@@ -485,6 +485,7 @@ public class OrderScreen : IScreen
                 }
             }
         };
+        
     }
 
     private void GoBack()
@@ -556,8 +557,12 @@ public class OrderScreen : IScreen
 
     private async Task UpdatePaymentType(User user)
     {
-        var phone = await _userService.GetPhoneNumber(user.Id);
-        var client = await _clientService.GetClient(phone!);
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+        var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+
+        var phone = await userService.GetPhoneNumber(user.Id);
+        var client = await clientService.GetClient(phone!);
 
         State.AllowSelectPaymentType = client.PaymentType == ClientPaymentType.Both;
         if(!State.AllowSelectPaymentType)

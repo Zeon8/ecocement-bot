@@ -1,6 +1,7 @@
 ﻿using EcocementBot.Exceptions;
 using EcocementBot.Helpers;
 using EcocementBot.Services;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -12,18 +13,23 @@ public class RemoveMarkScreen : IScreen
 {
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly MarkService _markService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public RemoveMarkScreen(TelegramBotClient client, Navigator navigator, MarkService markService)
+    public RemoveMarkScreen(TelegramBotClient client, 
+        Navigator navigator, 
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _markService = markService;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task EnterAsync(User user, Chat chat)
     {
-        IEnumerable<string> marks = await _markService.GetMarks();
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var markService = scoped.ServiceProvider.GetRequiredService<MarkService>();
+
+        IEnumerable<string> marks = await markService.GetMarks();
         var keyboard = KeyboardHelper.CreateKeyboard(marks.ToArray());
         keyboard.Add([CommonButtons.CancelButton]);
 
@@ -44,9 +50,12 @@ public class RemoveMarkScreen : IScreen
             return;
         }
 
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var markService = scoped.ServiceProvider.GetRequiredService<MarkService>();
+
         try
         {
-            await _markService.RemoveMark(message.Text);
+            await markService.RemoveMark(message.Text);
         }
         catch(MarkNotExistException)
         {

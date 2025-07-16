@@ -15,16 +15,17 @@ public partial class CreateClientScreen : IScreen
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly ClientService _clientService;
-    private readonly UserService _userService;
+    private readonly IServiceProvider _serviceProvider;
+
     private readonly Dictionary<StateType, Step> _steps;
 
-    public CreateClientScreen(TelegramBotClient client, Navigator navigator, ClientService clientService, UserService userService)
+    public CreateClientScreen(TelegramBotClient client, 
+        Navigator navigator, 
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _clientService = clientService;
-        _userService = userService;
+        _serviceProvider = serviceProvider;
 
         _steps = new()
         {
@@ -49,17 +50,21 @@ public partial class CreateClientScreen : IScreen
                         State.Model.PhoneNumber = CommonRegex.NonDigitSymbols.Replace(message.Text!, string.Empty);
                     }
 
-                    var user = await _userService.GetUser(State.Model.PhoneNumber);
+                    await using var scoped = _serviceProvider.CreateAsyncScope();
+                    var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+                    var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+
+                    var user = await userService.GetUser(State.Model.PhoneNumber);
                     if (user is not null)
                     {
-                        if(user.Role == Data.Entities.UserRole.Admin)
+                        if (user.Role == Data.Entities.UserRole.Admin)
                         {
                             await _client.SendMessage(message.Chat, $"❌ Це номер вже використаний адміністратором.");
                             await Ask(message);
                         }
                         else
                         {
-                            var client = await _clientService.GetClient(State.Model.PhoneNumber);
+                            var client = await clientService.GetClient(State.Model.PhoneNumber);
                             await _client.SendMessage(message.Chat, $"❌ Цей номер вже використаний клієнтом {client!.Name}.");
                             await Ask(message);
                         }
@@ -114,14 +119,22 @@ public partial class CreateClientScreen : IScreen
                         await Ask(message);
                         return;
                     }
-                    await _clientService.CreateClient(State.Model);
-                    await _userService.CreateUser(State.Model.PhoneNumber);
+
+                    await using var scoped = _serviceProvider.CreateAsyncScope();
+                    var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+                    var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+
+                    var user = await userService.GetUser(State.Model.PhoneNumber);
+                    await clientService.CreateClient(State.Model);
+                    await userService.CreateUser(State.Model.PhoneNumber);
+
                     await _client.SendMessage(message.Chat, "Клієнта додано ✅.");
                     await _navigator.GoBack(message.From!, message.Chat);
                 }
 
             }
         };
+       
     }
 
     public Task EnterAsync(User user, Chat chat) => Ask(chat, user);

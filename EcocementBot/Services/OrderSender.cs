@@ -13,8 +13,7 @@ public class OrderSender
     public long GroupId { get; set; }
 
     private readonly TelegramBotClient _client;
-    private readonly ClientService _clientService;
-    private readonly UserService _userService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
 
     private static readonly CultureInfo s_culture = new CultureInfo("uk-UA");
@@ -33,12 +32,13 @@ public class OrderSender
         [TimeOfDay.Anytime] = "Протягом дня",
     };
 
-    public OrderSender(TelegramBotClient client, ClientService clientService, IConfiguration configuration, UserService userService)
+    public OrderSender(TelegramBotClient client, 
+        IConfiguration configuration, 
+        IServiceProvider serviceProvider)
     {
         _client = client;
-        _clientService = clientService;
         _configuration = configuration;
-        _userService = userService;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task Send(User user, OrderModel model)
@@ -49,8 +49,12 @@ public class OrderSender
 
     private async Task<string> FormatOrder(User user, OrderModel model)
     {
-        var phoneNumber = await _userService.GetPhoneNumber(user.Id);
-        var client = await _clientService.GetClient(phoneNumber!);
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+        var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+
+        var phoneNumber = await userService.GetPhoneNumber(user.Id);
+        var client = await clientService.GetClient(phoneNumber!);
 
         StringBuilder builder = new();
 

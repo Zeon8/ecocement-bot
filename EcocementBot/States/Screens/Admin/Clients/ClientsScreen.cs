@@ -10,18 +10,23 @@ public class ClientsScreen : IScreen
 {
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly ClientService _clientService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public ClientsScreen(TelegramBotClient client, Navigator navigator, ClientService clientService)
+    public ClientsScreen(TelegramBotClient client, 
+        Navigator navigator, 
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _clientService = clientService;
+        _serviceProvider = serviceProvider;
     }
 
     public async Task EnterAsync(User user, Chat chat)
     {
-        var clients = await _clientService.GetClients();
+        await using var scoped = _serviceProvider.CreateAsyncScope();
+        var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+
+        var clients = await clientService.GetClients();
         var numbers = string.Join('\n', clients.Select(c => $"`+{c.PhoneNumber}` ({c.Name})"));
         await _client.SendMessage(chat, $"💼 *Клієнти*\n{numbers}\nОберіть:", 
             parseMode: ParseMode.Markdown, 

@@ -17,20 +17,17 @@ public class EditClientScreen : IScreen
 
     private readonly TelegramBotClient _client;
     private readonly Navigator _navigator;
-    private readonly ClientService _clientService;
-    private readonly UserService _userService;
+    private readonly IServiceProvider _serviceProvider;
 
     private readonly Dictionary<StateTypes, Step> _steps;
 
     public EditClientScreen(TelegramBotClient client,
         Navigator navigator,
-        ClientService clientService,
-        UserService userService)
+        IServiceProvider serviceProvider)
     {
         _client = client;
         _navigator = navigator;
-        _clientService = clientService;
-        _userService = userService;
+        _serviceProvider = serviceProvider;
 
         _steps = new()
         {
@@ -38,7 +35,10 @@ public class EditClientScreen : IScreen
             {
                 Ask = async (chat, user) =>
                 {
-                    IEnumerable<string> phoneNumbers = await _clientService.GetPhoneNumbers();
+                    await using var scoped = _serviceProvider.CreateAsyncScope();
+                    var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+
+                    IEnumerable<string> phoneNumbers = await clientService.GetPhoneNumbers();
                     await _client.SendMessage(chat, "*✍️ Редагування клієнта*\n\nВведіть номер клієнта:",
                         parseMode: ParseMode.Markdown,
                         replyMarkup: new ReplyKeyboardMarkup
@@ -53,7 +53,11 @@ public class EditClientScreen : IScreen
                 Handle = async message =>
                 {
                     string? phoneNumber = CommonRegex.NonDigitSymbols.Replace(message.Text!, string.Empty);
-                    var client = await _clientService.GetClient(phoneNumber);
+                    
+                    await using var scoped = _serviceProvider.CreateAsyncScope();
+                    var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+                    
+                    var client = await clientService.GetClient(phoneNumber);
                     if (client is null)
                     {
                         await _client.SendMessage(message.Chat, "❌ Клієнта за цим номером не знайдено.\nВведіть номер:");
@@ -75,7 +79,7 @@ public class EditClientScreen : IScreen
             },
             [StateTypes.EnteringPhoneNumber] = new Step
             {
-                Ask = (chat, _) => _client.SendMessage(chat, "Введіть новий номер:", 
+                Ask = (chat, _) => _client.SendMessage(chat, "Введіть новий номер:",
                     replyMarkup: CreateFieldKeyboard('+' + State.Model.PhoneNumber)),
                 Handle = async message =>
                 {
@@ -95,7 +99,11 @@ public class EditClientScreen : IScreen
 
                     if (State.OldPhoneNumber != State.Model.PhoneNumber)
                     {
-                        var user = await _userService.GetUser(State.Model.PhoneNumber);
+                        await using var scoped = _serviceProvider.CreateAsyncScope();
+                        var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+                        var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+
+                        var user = await userService.GetUser(State.Model.PhoneNumber);
                         if (user is not null)
                         {
                             if (user.Role == UserRole.Admin)
@@ -105,7 +113,7 @@ public class EditClientScreen : IScreen
                             }
                             else
                             {
-                                var client = await _clientService.GetClient(State.Model.PhoneNumber);
+                                var client = await clientService.GetClient(State.Model.PhoneNumber);
                                 await _client.SendMessage(message.Chat, $"❌ Цей номер вже використаний клієнтом {client!.Name}.");
                                 await Ask(message);
                             }
@@ -118,7 +126,7 @@ public class EditClientScreen : IScreen
                 }
             },
             [StateTypes.EnteringName] = new Step
-            { 
+            {
                 Ask = (chat, _) => _client.SendMessage(chat, "Введіть назву підприємства:",
                     replyMarkup: CreateFieldKeyboard(State.Model.Name)),
                 Handle = message =>
@@ -175,16 +183,22 @@ public class EditClientScreen : IScreen
                         await Ask(message);
                         return;
                     }
-                    await _clientService.UpdateClient(State.Model);
+
+                    await using var scoped = _serviceProvider.CreateAsyncScope();
+                    var clientService = scoped.ServiceProvider.GetRequiredService<ClientService>();
+                    var userService = scoped.ServiceProvider.GetRequiredService<UserService>();
+
+                    await clientService.UpdateClient(State.Model);
 
                     if (State.OldPhoneNumber != State.Model.PhoneNumber)
-                        await _userService.UpdateUserPhone(State.OldPhoneNumber!, State.Model.PhoneNumber);
+                        await userService.UpdateUserPhone(State.OldPhoneNumber!, State.Model.PhoneNumber);
 
                     await _client.SendMessage(message.Chat, "Дані клієнта оновлено ✅.");
                     await _navigator.GoBack(message.From!, message.Chat);
                 }
             }
         };
+        
     }
 
     public Task EnterAsync(TelegramUser user, Chat chat) => Ask(chat, user);
