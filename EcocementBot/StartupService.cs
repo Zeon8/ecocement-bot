@@ -107,8 +107,9 @@ public class StartupService : BackgroundService
 
     private async Task SendLogs(Message message)
     {
-        using var logFileStream = new FileStream("log.txt", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        await _client.SendDocument(message.Chat, new InputFileStream(logFileStream, "log.txt"));
+        string logFileName = $"log{DateTime.Today:yyyyMMdd}.txt";
+        using var logFileStream = new FileStream(logFileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        await _client.SendDocument(message.Chat, new InputFileStream(logFileStream, logFileName));
 
         using var stateFileStream = new FileStream("state.json", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         await _client.SendDocument(message.Chat, new InputFileStream(stateFileStream, "state.json"));
